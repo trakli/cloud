@@ -32,7 +32,7 @@ class CloudServiceProvider extends ServiceProvider
     protected function registerRoutes(): void
     {
         Route::middleware(['api'])
-            ->prefix('api/cloud')
+            ->prefix('api/v1/cloud')
             ->namespace($this->namespace)
             ->group(function () {
                 $this->loadRoutesFrom(base_path('plugins/cloud/routes/api.php'));
