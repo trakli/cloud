@@ -121,8 +121,13 @@ class CloudController extends Controller
     )]
     public function getPlans(\Illuminate\Http\Request $request): JsonResponse
     {
-        $region = $request->query('region');
         $config = $this->config;
+
+        if ($config['freemode_enabled'] ?? false) {
+            return \response()->json([]);
+        }
+
+        $region = $request->query('region');
 
         // If no region is specified, return all regions
         if ($region === null) {
@@ -133,15 +138,19 @@ class CloudController extends Controller
                     'currency' => $regionData['currency'],
                     'trial_days' => $config['trial_days'] ?? 3,
                     'free_plan_enabled' => $config['free_plan_enabled'] ?? true,
-                    'plans' => collect($config['plans'])->map(function ($plan) use ($regionData, $config) {
-                        $priceKey = $plan['id'].'_price';
+                    'plans' => collect($config['plans'])
+                        ->filter(function ($plan) use ($config) {
+                            return ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free';
+                        })
+                        ->map(function ($plan) use ($regionData, $config) {
+                            $priceKey = $plan['id'].'_price';
 
-                        return array_merge($plan, [
-                            'price_cents' => $regionData[$priceKey] ?? 0,
-                            'currency' => $regionData['currency'] ?? 'USD',
-                            'trial_days' => $config['trial_days'] ?? 3,
-                        ]);
-                    })->values()->toArray(),
+                            return array_merge($plan, [
+                                'price_cents' => $regionData[$priceKey] ?? 0,
+                                'currency' => $regionData['currency'] ?? 'USD',
+                                'trial_days' => $config['trial_days'] ?? 3,
+                            ]);
+                        })->values()->toArray(),
                 ];
             }
 
@@ -155,15 +164,19 @@ class CloudController extends Controller
 
         $regionData = $config['regions'][$region] ?? $config['regions']['us'];
 
-        $plans = collect($config['plans'])->map(function ($plan) use ($regionData, $config) {
-            $priceKey = $plan['id'].'_price';
+        $plans = collect($config['plans'])
+            ->filter(function ($plan) use ($config) {
+                return ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free';
+            })
+            ->map(function ($plan) use ($regionData, $config) {
+                $priceKey = $plan['id'].'_price';
 
-            return array_merge($plan, [
-                'price_cents' => $regionData[$priceKey] ?? 0,
-                'currency' => $regionData['currency'] ?? 'USD',
-                'trial_days' => $config['trial_days'] ?? 3,
-            ]);
-        })->values();
+                return array_merge($plan, [
+                    'price_cents' => $regionData[$priceKey] ?? 0,
+                    'currency' => $regionData['currency'] ?? 'USD',
+                    'trial_days' => $config['trial_days'] ?? 3,
+                ]);
+            })->values();
 
         return response()->json([
             'region' => $regionData['name'] ?? 'United States',
