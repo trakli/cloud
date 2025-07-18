@@ -141,7 +141,7 @@ class CloudController extends Controller
                             'currency' => $regionData['currency'] ?? 'USD',
                             'trial_days' => $config['trial_days'] ?? 3,
                         ]);
-                    })->toArray(),
+                    })->values()->toArray(),
                 ];
             }
 
@@ -163,7 +163,7 @@ class CloudController extends Controller
                 'currency' => $regionData['currency'] ?? 'USD',
                 'trial_days' => $config['trial_days'] ?? 3,
             ]);
-        });
+        })->values();
 
         return response()->json([
             'region' => $regionData['name'] ?? 'United States',
