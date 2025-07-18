@@ -31,7 +31,8 @@ return [
 
     // Prices are in cents
     'trial_days' => 3,
-    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', true),
+    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', false),
+    'freemode_enabled' => (bool) env('CLOUD_FREEMODE_ENABLED', false),
     'regions' => [
         'us' => [
             'name' => 'United States',
@@ -54,6 +55,20 @@ return [
     ],
 
     'plans' => [
+        'free' => [
+            'id' => 'free',
+            'name' => 'Free',
+            'interval' => 'lifetime',
+            'features' => [
+                'Up to 3 wallets',
+                'Up to 10 categories',
+                'Community support',
+            ],
+            'cta' => [
+                'text' => 'Current Plan',
+                'button_text' => 'Get Started',
+            ],
+        ],
         'monthly' => [
             'id' => 'monthly',
             'name' => 'Monthly',
