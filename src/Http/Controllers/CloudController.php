@@ -2,7 +2,7 @@
 
 namespace Trakli\Cloud\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\API\ApiController;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
 
@@ -78,7 +78,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'description', type: 'string'),
     ]
 )]
-class CloudController extends Controller
+class CloudController extends ApiController
 {
     private ?array $config;
 
@@ -154,7 +154,7 @@ class CloudController extends Controller
                 ];
             }
 
-            return response()->json($result);
+            return $this->success($result);
         }
 
         // Validate region format
@@ -178,7 +178,7 @@ class CloudController extends Controller
                 ]);
             })->values();
 
-        return response()->json([
+        return $this->success([
             'region' => $regionData['name'] ?? 'United States',
             'currency' => $regionData['currency'] ?? 'USD',
             'trial_days' => $config['trial_days'] ?? 3,
@@ -205,7 +205,7 @@ class CloudController extends Controller
     {
         $config = $this->config;
 
-        return new JsonResponse([
+        return $this->success([
             'overview' => $config['overview'] ?? null,
             'benefits' => $config['benefits'] ?? [],
             'trial_days' => $config['trial_days'] ?? 3,
