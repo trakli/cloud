@@ -38,7 +38,8 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'string', example: 'monthly'),
         new OA\Property(property: 'name', type: 'string', example: 'Monthly'),
-        new OA\Property(property: 'price_cents', type: 'integer', example: 5000),
+        new OA\Property(property: 'price', type: 'number', example: 5.00),
+        new OA\Property(property: 'price_formatted', type: 'string', example: '$5.00'),
         new OA\Property(property: 'currency', type: 'string', example: 'USD'),
         new OA\Property(property: 'interval', type: 'string', example: 'month'),
         new OA\Property(property: 'trial_days', type: 'integer', example: 3),
@@ -129,32 +130,33 @@ class CloudController extends ApiController
 
         $region = $request->query('region');
 
-        // If no region is specified, return all regions
         if ($region === null) {
-            $result = [];
+            $basePlans = collect($config['plans'])
+                ->filter(fn ($plan) => ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free')
+                ->values();
+
+            $regionsWithPricing = [];
             foreach ($config['regions'] as $regionCode => $regionData) {
-                $result[$regionCode] = [
+                $prices = [];
+                foreach ($basePlans as $plan) {
+                    if ($plan['id'] !== 'free') {
+                        $prices[$plan['id']] = $this->mapPlanData($plan, $regionData, true);
+                    }
+                }
+                $regionsWithPricing[$regionCode] = [
                     'name' => $regionData['name'],
                     'currency' => $regionData['currency'],
-                    'trial_days' => $config['trial_days'] ?? 3,
-                    'free_plan_enabled' => $config['free_plan_enabled'] ?? true,
-                    'plans' => collect($config['plans'])
-                        ->filter(function ($plan) use ($config) {
-                            return ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free';
-                        })
-                        ->map(function ($plan) use ($regionData, $config) {
-                            $priceKey = $plan['id'].'_price';
-
-                            return array_merge($plan, [
-                                'price_cents' => $regionData[$priceKey] ?? 0,
-                                'currency' => $regionData['currency'] ?? 'USD',
-                                'trial_days' => $config['trial_days'] ?? 3,
-                            ]);
-                        })->values()->toArray(),
+                    'prices' => $prices,
                 ];
             }
 
-            return $this->success($result);
+            return $this->success([
+                'overview' => $config['overview']['plans'] ?? null,
+                'trial_days' => $config['trial_days'] ?? 3,
+                'free_plan_enabled' => (bool) ($config['free_plan_enabled'] ?? false),
+                'plans' => $basePlans->toArray(),
+                'regions' => $regionsWithPricing,
+            ]);
         }
 
         // Validate region format
@@ -168,21 +170,16 @@ class CloudController extends ApiController
             ->filter(function ($plan) use ($config) {
                 return ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free';
             })
-            ->map(function ($plan) use ($regionData, $config) {
-                $priceKey = $plan['id'].'_price';
-
-                return array_merge($plan, [
-                    'price_cents' => $regionData[$priceKey] ?? 0,
-                    'currency' => $regionData['currency'] ?? 'USD',
-                    'trial_days' => $config['trial_days'] ?? 3,
-                ]);
+            ->map(function ($plan) use ($regionData) {
+                return $this->mapPlanData($plan, $regionData);
             })->values();
 
         return $this->success([
+            'overview' => $config['overview']['plans'] ?? null,
             'region' => $regionData['name'] ?? 'United States',
             'currency' => $regionData['currency'] ?? 'USD',
             'trial_days' => $config['trial_days'] ?? 3,
-            'free_plan_enabled' => $config['free_plan_enabled'] ?? true,
+            'free_plan_enabled' => ($config['free_plan_enabled'] ?? false),
             'plans' => $plans,
         ]);
     }
@@ -191,10 +188,10 @@ class CloudController extends ApiController
      * Get cloud benefits and overview
      */
     #[OA\Get(
-        path: '/benefits',
-        summary: 'Get cloud benefits',
+        path: '/api/cloud/benefits',
+        operationId: 'getBenefits',
+        summary: 'Get cloud benefits and overview',
         tags: ['Cloud'],
-        servers: [new OA\Server(url: '/api/v1/cloud', description: 'Cloud Plugin API')]
     )]
     #[OA\Response(
         response: 200,
@@ -206,9 +203,27 @@ class CloudController extends ApiController
         $config = $this->config;
 
         return $this->success([
-            'overview' => $config['overview'] ?? null,
+            'overview' => $config['overview']['benefits'] ?? null,
             'benefits' => $config['benefits'] ?? [],
             'trial_days' => $config['trial_days'] ?? 3,
         ]);
+    }
+
+    /**
+     * Maps plan data to include pricing and currency information.
+     */
+    private function mapPlanData(array $plan, array $regionData, bool $pricesOnly = false): array
+    {
+        $priceKey = $plan['interval'] === 'month' ? 'monthly_price' : 'yearly_price';
+        $priceFormattedKey = $plan['interval'] === 'month' ? 'monthly_price_formatted' : 'yearly_price_formatted';
+        $price = $plan['interval'] === 'lifetime' ? 0 : ($regionData[$priceKey] ?? 0);
+        $priceFormatted = $plan['interval'] === 'lifetime' ? 'Free' : ($regionData[$priceFormattedKey] ?? 'N/A');
+
+        $data = [
+            'price' => $price,
+            'price_formatted' => $priceFormatted,
+        ];
+
+        return $pricesOnly ? $data : array_merge($plan, $data);
     }
 }
