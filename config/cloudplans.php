@@ -2,8 +2,14 @@
 
 return [
     'overview' => [
-        'title' => 'Why Create a Trakli Cloud Account?',
-        'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support — giving you peace of mind and full control of your finances wherever you go.',
+        'benefits' => [
+            'title' => 'Why Create a Trakli Cloud Account?',
+            'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support — giving you peace of mind and full control of your finances wherever you go.',
+        ],
+        'plans' => [
+            'title' => 'Upgrade to Premium',
+            'description' => 'Unlock powerful tools and premium features to achieve your financial goals.',
+        ],
     ],
 
     'benefits' => [
@@ -29,7 +35,6 @@ return [
         ],
     ],
 
-    // Prices are in cents
     'trial_days' => 3,
     'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', false),
     'freemode_enabled' => (bool) env('CLOUD_FREEMODE_ENABLED', false),
@@ -37,20 +42,26 @@ return [
         'us' => [
             'name' => 'United States',
             'currency' => 'USD',
-            'monthly_price' => (int) env('CLOUD_PLAN_MONTHLY_PRICE', 500),
-            'yearly_price' => (int) env('CLOUD_PLAN_YEARLY_PRICE', 5000),
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_US', 5.00),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_US', 50.00),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_US', '$5.00'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_US', '$50.00'),
         ],
         'eu' => [
             'name' => 'Europe',
-            'currency' => 'USD',
-            'monthly_price' => (int) env('CLOUD_PLAN_MONTHLY_PRICE', 500),
-            'yearly_price' => (int) env('CLOUD_PLAN_YEARLY_PRICE', 5000),
+            'currency' => 'EUR',
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_EU', 5.00),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_EU', 50.00),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_EU', '€5.00'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_EU', '€50.00'),
         ],
         'uk' => [
             'name' => 'United Kingdom',
-            'currency' => 'USD',
-            'monthly_price' => (int) env('CLOUD_PLAN_MONTHLY_PRICE', 500),
-            'yearly_price' => (int) env('CLOUD_PLAN_YEARLY_PRICE', 5000),
+            'currency' => 'GBP',
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_UK', 5.00),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_UK', 50.00),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_UK', '£5.00'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_UK', '£50.00'),
         ],
     ],
 

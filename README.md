@@ -69,48 +69,117 @@ All regions use USD as the currency.
 
 ### Get Plans
 
-#### Get plans for a specific region
+The `GET /api/cloud/plans` endpoint retrieves available subscription plans. The response structure changes based on whether the optional `region` query parameter is provided.
+
+#### Get Plans for a Specific Region
+
+When the `region` parameter is included (e.g., `?region=us`), the API returns a detailed response for that single region.
+
+**Example Request:**
 ```http
 GET /api/cloud/plans?region=us
 ```
 
-#### Get plans for all regions
+**Example Response (`region=us`):**
+```json
+{
+    "success": true,
+    "message": "Operation successful",
+    "data": {
+        "overview": { /* ... */ },
+        "region": "United States",
+        "currency": "USD",
+        "trial_days": 3,
+        "free_plan_enabled": false,
+        "plans": [
+            {
+                "id": "monthly",
+                "name": "Monthly",
+                "interval": "month",
+                "features": [/* ... */],
+                "cta": { /* ... */ },
+                "price": 5.00,
+                "price_formatted": "$5.00"
+            },
+            {
+                "id": "yearly",
+                "name": "Yearly",
+                "interval": "year",
+                "features": [/* ... */],
+                "cta": { /* ... */ },
+                "price": 50.00,
+                "price_formatted": "$50.00"
+            }
+        ]
+    }
+}
+```
+
+#### Get All Plans and Regional Pricing
+
+When the `region` parameter is **omitted**, the API returns a consolidated response containing base plan information and a breakdown of pricing for all available regions. This avoids data duplication.
+
+**Example Request:**
 ```http
 GET /api/cloud/plans
 ```
 
-**Query Parameters:**
-- `region` (optional): 
-  - If provided: Returns plans for the specified region (us, eu, uk). Falls back to 'us' if invalid.
-  - If omitted: Returns plans for all available regions.
-
-**Example Response:**
+**Example Response (All Regions):**
 ```json
 {
-    "region": "United States",
-    "currency": "USD",
-    "trial_days": 3,
-    "free_plan_enabled": true,
-    "plans": [
-        {
-            "id": "monthly",
-            "name": "Monthly",
-            "interval": "month",
-            "price_cents": 500,
-            "currency": "USD",
-            "trial_days": 3,
-            "features": ["..."]
-        },
-        {
-            "id": "yearly",
-            "name": "Yearly",
-            "interval": "year",
-            "price_cents": 5000,
-            "currency": "USD",
-            "trial_days": 3,
-            "features": ["..."]
+    "success": true,
+    "message": "Operation successful",
+    "data": {
+        "overview": { /* ... */ },
+        "trial_days": 3,
+        "free_plan_enabled": false,
+        "plans": [
+            {
+                "id": "monthly",
+                "name": "Monthly",
+                "interval": "month",
+                "features": [/* ... */],
+                "cta": { /* ... */ }
+            },
+            {
+                "id": "yearly",
+                "name": "Yearly",
+                "interval": "year",
+                "features": [/* ... */],
+                "cta": { /* ... */ }
+            }
+        ],
+        "regions": {
+            "us": {
+                "name": "United States",
+                "currency": "USD",
+                "prices": {
+                    "monthly": {
+                        "price": 5.00,
+                        "price_formatted": "$5.00"
+                    },
+                    "yearly": {
+                        "price": 50.00,
+                        "price_formatted": "$50.00"
+                    }
+                }
+            },
+            "eu": {
+                "name": "Europe",
+                "currency": "EUR",
+                "prices": {
+                    "monthly": {
+                        "price": 5.00,
+                        "price_formatted": "€5.00"
+                    },
+                    "yearly": {
+                        "price": 50.00,
+                        "price_formatted": "€50.00"
+                    }
+                }
+            }
         }
-    ]
+    }
 }
 ```
 
