@@ -69,6 +69,7 @@ return [
         'free' => [
             'id' => 'free',
             'name' => 'Free',
+            'token_allowance' => (int) env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
             'interval' => 'lifetime',
             'features' => [
                 'Up to 3 wallets',
@@ -83,6 +84,7 @@ return [
         'monthly' => [
             'id' => 'monthly',
             'name' => 'Monthly',
+            'token_allowance' => (int) env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
             'interval' => 'month',
             'features' => [
                 'Unlimited categories and wallets',
@@ -97,6 +99,7 @@ return [
         ],
         'yearly' => [
             'id' => 'yearly',
+            'token_allowance' => (int) env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
             'name' => 'Yearly',
             'interval' => 'year',
             'features' => [
