@@ -14,6 +14,12 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->mergeConfigFrom(
+            __DIR__ . '/../config/cloudplans.php',
+            'cloudplans'
+        );
+
+        $this->app->singleton(\App\Contracts\Entitlements::class, \Trakli\Cloud\Support\CloudEntitlements::class);
         config(['cashier.model' => \Trakli\Cloud\Models\BillingCustomer::class]);
         \Laravel\Cashier\Cashier::useCustomerModel(\Trakli\Cloud\Models\BillingCustomer::class);
     }
