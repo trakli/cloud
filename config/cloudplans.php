@@ -42,24 +42,30 @@ return [
         'us' => [
             'name' => 'United States',
             'currency' => 'USD',
+            'monthly_price_id'=>'plan_id', // from stripe
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_US', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_US', 50.00),
+            'yearly_price_id' => 'price_id', // from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_US', '$5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_US', '$50.00'),
         ],
         'eu' => [
             'name' => 'Europe',
             'currency' => 'EUR',
+            'monthly_price_id'=>'price_id', // from stripe
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_EU', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_EU', 50.00),
+            'yearly_price_id' => 'price_id',// from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_EU', '€5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_EU', '€50.00'),
         ],
         'uk' => [
             'name' => 'United Kingdom',
+            'monthly_price_id'=>'price_id',// from stripe
             'currency' => 'GBP',
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_UK', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_UK', 50.00),
+            'yearly_price_id' => 'price_id',// from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_UK', '£5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_UK', '£50.00'),
         ],

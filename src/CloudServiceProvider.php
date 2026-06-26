@@ -14,7 +14,8 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Register any bindings here if needed
+        config(['cashier.model' => \Trakli\Cloud\Models\BillingCustomer::class]);
+        \Laravel\Cashier\Cashier::useCustomerModel(\Trakli\Cloud\Models\BillingCustomer::class);
     }
 
     /**
@@ -24,6 +25,7 @@ class CloudServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
         $this->publishConfig();
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 
     /**
