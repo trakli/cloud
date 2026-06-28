@@ -42,24 +42,30 @@ return [
         'us' => [
             'name' => 'United States',
             'currency' => 'USD',
+            'monthly_price_id'=>'plan_id', // from stripe
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_US', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_US', 50.00),
+            'yearly_price_id' => 'price_id', // from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_US', '$5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_US', '$50.00'),
         ],
         'eu' => [
             'name' => 'Europe',
             'currency' => 'EUR',
+            'monthly_price_id'=>'price_id', // from stripe
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_EU', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_EU', 50.00),
+            'yearly_price_id' => 'price_id',// from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_EU', '€5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_EU', '€50.00'),
         ],
         'uk' => [
             'name' => 'United Kingdom',
+            'monthly_price_id'=>'price_id',// from stripe
             'currency' => 'GBP',
             'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_UK', 5.00),
             'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_UK', 50.00),
+            'yearly_price_id' => 'price_id',// from stripe
             'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_UK', '£5.00'),
             'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_UK', '£50.00'),
         ],
@@ -69,7 +75,13 @@ return [
         'free' => [
             'id' => 'free',
             'name' => 'Free',
+            'token_allowance' => (int) env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
             'interval' => 'lifetime',
+            'feature_keys' => [],
+            'limits' => [
+                'max_wallets' => 3,
+                'max_categories' => 10,
+            ],
             'features' => [
                 'Up to 3 wallets',
                 'Up to 10 categories',
@@ -83,7 +95,13 @@ return [
         'monthly' => [
             'id' => 'monthly',
             'name' => 'Monthly',
+            'token_allowance' => (int) env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
             'interval' => 'month',
+            'feature_keys' => ['plaid'],
+            'limits' => [
+                'max_wallets' => null,
+                'max_categories' => null,
+            ],
             'features' => [
                 'Unlimited categories and wallets',
                 'Mobile and web access',
@@ -97,8 +115,14 @@ return [
         ],
         'yearly' => [
             'id' => 'yearly',
+            'token_allowance' => (int) env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
             'name' => 'Yearly',
             'interval' => 'year',
+            'feature_keys' => ['plaid'],
+            'limits' => [
+                'max_wallets' => null,
+                'max_categories' => null,
+            ],
             'features' => [
                 'Everything in Monthly',
                 '2 months free (save ~17%)',

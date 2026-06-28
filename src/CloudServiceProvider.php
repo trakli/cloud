@@ -14,7 +14,14 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Register any bindings here if needed
+        $this->mergeConfigFrom(
+            __DIR__ . '/../config/cloudplans.php',
+            'cloudplans'
+        );
+
+        $this->app->singleton(\App\Contracts\Entitlements::class, \Trakli\Cloud\Support\CloudEntitlements::class);
+        config(['cashier.model' => \Trakli\Cloud\Models\BillingCustomer::class]);
+        \Laravel\Cashier\Cashier::useCustomerModel(\Trakli\Cloud\Models\BillingCustomer::class);
     }
 
     /**
@@ -24,6 +31,16 @@ class CloudServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
         $this->publishConfig();
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Register feature gating middleware
+        $this->app['router']->aliasMiddleware('cloud.feature', \Trakli\Cloud\Http\Middleware\GateFeature::class);
+
+        // Register Stripe webhook event listener to clear plan cache
+        \Illuminate\Support\Facades\Event::listen(
+            \Laravel\Cashier\Events\WebhookReceived::class,
+            \Trakli\Cloud\Listeners\StripeWebhookListener::class
+        );
     }
 
     /**

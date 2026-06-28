@@ -4,6 +4,7 @@ namespace Trakli\Cloud\Http\Controllers;
 
 use App\Http\Controllers\API\ApiController;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 #[OA\Info(version: '1.0.0', title: 'Trakli Cloud Subscriptions API')]
@@ -87,7 +88,7 @@ class CloudController extends ApiController
     {
         $this->config = config('cloudplans');
 
-        if (! $this->config) {
+        if (!$this->config) {
             abort(503, 'Trakli Cloud is not configured. Please publish the configuration file.');
         }
     }
@@ -120,7 +121,7 @@ class CloudController extends ApiController
             ]
         )
     )]
-    public function getPlans(\Illuminate\Http\Request $request): JsonResponse
+    public function getPlans(Request $request): JsonResponse
     {
         $config = $this->config;
 
@@ -132,7 +133,7 @@ class CloudController extends ApiController
 
         if ($region === null) {
             $basePlans = collect($config['plans'])
-                ->filter(fn ($plan) => ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free')
+                ->filter(fn($plan) => ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free')
                 ->values();
 
             $regionsWithPricing = [];
@@ -160,7 +161,7 @@ class CloudController extends ApiController
         }
 
         // Validate region format
-        if (! preg_match('/^[a-z]{2,3}$/', $region)) {
+        if (!preg_match('/^[a-z]{2,3}$/', $region)) {
             $region = 'us';
         }
 
@@ -207,6 +208,113 @@ class CloudController extends ApiController
             'benefits' => $config['benefits'] ?? [],
             'trial_days' => $config['trial_days'] ?? 3,
         ]);
+    }
+
+    /**
+     * Create a Stripe checkout session for a cloud plan
+     */
+    #[OA\Post(
+        path: '/checkout',
+        summary: 'Create checkout session',
+        description: 'Creates a Stripe checkout session for a specific subscription plan and region.',
+        tags: ['Cloud'],
+        servers: [new OA\Server(url: '/api/v1/cloud', description: 'Cloud Plugin API')],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'plan', type: 'string', enum: ['monthly', 'yearly'], example: 'monthly'),
+                    new OA\Property(property: 'region', type: 'string', enum: ['us', 'eu', 'uk'], example: 'us'),
+                    new OA\Property(property: 'success_url', type: 'string', format: 'url', example: 'https://example.com/success'),
+                    new OA\Property(property: 'cancel_url', type: 'string', format: 'url', example: 'https://example.com/cancel'),
+                ]
+            )
+        )
+    )]
+    #[OA\Response(
+        response: 200,
+        description: 'Checkout session created successfully',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'success', type: 'boolean', example: true),
+                new OA\Property(property: 'message', type: 'string', example: 'Operation successful'),
+                new OA\Property(
+                    property: 'data',
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'id', type: 'string', example: 'cs_test_a1b2c3'),
+                        new OA\Property(property: 'url', type: 'string', example: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3'),
+                    ]
+                )
+            ]
+        )
+    )]
+    #[OA\Response(
+        response: 400,
+        description: 'Bad Request / Validation error'
+    )]
+    #[OA\Response(
+        response: 401,
+        description: 'Unauthorized'
+    )]
+    #[OA\Response(
+        response: 500,
+        description: 'Internal server error'
+    )]
+    public function checkout(Request $request): JsonResponse
+    {
+        $validation = $this->validateRequest($request, [
+            'plan' => ['required', 'string', 'in:monthly,yearly'],
+            'region' => ['nullable', 'string', 'in:us,eu,uk'],
+            'success_url' => ['nullable', 'url'],
+            'cancel_url' => ['nullable', 'url'],
+        ]);
+
+        if (!$validation['isValidated']) {
+            return $this->failure($validation['message'], $validation['code'], $validation['errors'] ?? []);
+        }
+
+        $user = $request->user();
+        if (!$user) {
+            return $this->failure('Unauthorized', 401);
+        }
+
+        $plan = $request->input('plan');
+        $successUrl = $request->input('success_url', url('/checkout/success'));
+        $cancelUrl = $request->input('cancel_url', url('/checkout/cancel'));
+
+        $config = $this->config;
+        $planConfig = $config['plans'][$plan] ?? null;
+        if (!$planConfig) {
+            return $this->failure('Plan not found', 404);
+        }
+
+        $region = $request->input('region', 'us');
+        $regionData = $config['regions'][$region];
+
+        /** @var \Trakli\Cloud\Models\BillingCustomer $billingCustomer */
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::firstOrCreate([
+            'user_id' => $user->id,
+        ]);
+
+        $priceIdKey = "{$plan}_price_id";
+        $priceId = $regionData[$priceIdKey];
+
+        try {
+            $checkout = $billingCustomer->newSubscription($plan, $priceId)
+                ->checkout([
+                    'success_url' => $successUrl,
+                    'cancel_url' => $cancelUrl,
+                ]);
+
+            return $this->success([
+                'id' => $checkout->id,
+                'url' => $checkout->url,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->failure('Failed to initiate checkout: ' . $e->getMessage(), 500);
+        }
     }
 
     /**
