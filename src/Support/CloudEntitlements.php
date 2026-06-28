@@ -45,9 +45,9 @@ class CloudEntitlements implements Entitlements
             return 0;
         }
 
-        // Get owner's current plan
-        $planCode = $owner->getConfigValue('subscription_plan');
-        if (empty($planCode)) {
+        // Get owner's current plan via Cashier
+        $planCode = $this->getPlanCode($owner);
+        if ($planCode === 'free') {
             return INF;
         }
 
@@ -82,8 +82,8 @@ class CloudEntitlements implements Entitlements
             return;
         }
 
-        $planCode = $owner->getConfigValue('subscription_plan');
-        if (empty($planCode)) {
+        $planCode = $this->getPlanCode($owner);
+        if ($planCode === 'free') {
             return;
         }
 
@@ -114,6 +114,26 @@ class CloudEntitlements implements Entitlements
                 'tokens_used' => $amount,
             ]);
         }
+    }
+
+    /**
+     * Get the active plan code for the owner via Cashier.
+     */
+    private function getPlanCode(Model $owner): string
+    {
+        /** @var \Trakli\Cloud\Models\BillingCustomer|null $billingCustomer */
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+        if ($billingCustomer) {
+            if ($billingCustomer->subscribed('monthly')) {
+                return 'monthly';
+            }
+            if ($billingCustomer->subscribed('yearly')) {
+                return 'yearly';
+            }
+            return 'free';
+        }
+
+        return 'free';
     }
 
     /**
