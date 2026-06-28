@@ -11,12 +11,26 @@ use Trakli\Cloud\Models\AiUsageCounter;
 
 class CloudEntitlements implements Entitlements
 {
-    /**
-     * Determine if the owner is allowed to use a given feature.
-     */
     public function allows(?Model $owner, string $feature): bool
     {
-        return true;
+        if (!$owner) {
+            return false;
+        }
+
+        if (config('cloudplans.freemode_enabled', false)) {
+            return true;
+        }
+
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+        if (!$billingCustomer) {
+            return true;
+        }
+
+        $planCode = $this->getPlanCode($owner);
+
+        $features = config("cloudplans.plans.{$planCode}.feature_keys", []);
+
+        return in_array($feature, $features);
     }
 
     /**
@@ -24,7 +38,22 @@ class CloudEntitlements implements Entitlements
      */
     public function limit(?Model $owner, string $key): ?int
     {
-        return null;
+        if (!$owner) {
+            return 0;
+        }
+
+        if (config('cloudplans.freemode_enabled', false)) {
+            return null;
+        }
+
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+        if (!$billingCustomer) {
+            return null;
+        }
+
+        $planCode = $this->getPlanCode($owner);
+
+        return config("cloudplans.plans.{$planCode}.limits.{$key}");
     }
 
     /**
@@ -45,11 +74,13 @@ class CloudEntitlements implements Entitlements
             return 0;
         }
 
-        // Get owner's current plan via Cashier
-        $planCode = $this->getPlanCode($owner);
-        if ($planCode === 'free') {
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+        if (!$billingCustomer) {
             return INF;
         }
+
+        // Get owner's current plan via Cashier
+        $planCode = $this->getPlanCode($owner);
 
         $plan = config("cloudplans.plans.{$planCode}");
         if (!$plan) {
@@ -82,10 +113,12 @@ class CloudEntitlements implements Entitlements
             return;
         }
 
-        $planCode = $this->getPlanCode($owner);
-        if ($planCode === 'free') {
+        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+        if (!$billingCustomer) {
             return;
         }
+
+        $planCode = $this->getPlanCode($owner);
 
         // Extract message ID from debug backtrace to ensure idempotency
         $messageId = $this->getCurrentChatMessageId();
@@ -116,24 +149,25 @@ class CloudEntitlements implements Entitlements
         }
     }
 
-    /**
-     * Get the active plan code for the owner via Cashier.
-     */
     private function getPlanCode(Model $owner): string
     {
-        /** @var \Trakli\Cloud\Models\BillingCustomer|null $billingCustomer */
-        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
-        if ($billingCustomer) {
-            if ($billingCustomer->subscribed('monthly')) {
-                return 'monthly';
-            }
-            if ($billingCustomer->subscribed('yearly')) {
-                return 'yearly';
-            }
-            return 'free';
-        }
+        $cacheKey = "user_plan_code_{$owner->getKey()}";
 
-        return 'free';
+        return Cache::remember($cacheKey, now()->addHour(), function () use ($owner) {
+            /** @var \Trakli\Cloud\Models\BillingCustomer|null $billingCustomer */
+            $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::where('user_id', $owner->getKey())->first();
+            if ($billingCustomer) {
+                if ($billingCustomer->subscribed('monthly')) {
+                    return 'monthly';
+                }
+                if ($billingCustomer->subscribed('yearly')) {
+                    return 'yearly';
+                }
+                return 'free';
+            }
+
+            return 'free';
+        });
     }
 
     /**

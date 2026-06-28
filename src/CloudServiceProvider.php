@@ -32,6 +32,15 @@ class CloudServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->publishConfig();
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Register feature gating middleware
+        $this->app['router']->aliasMiddleware('cloud.feature', \Trakli\Cloud\Http\Middleware\GateFeature::class);
+
+        // Register Stripe webhook event listener to clear plan cache
+        \Illuminate\Support\Facades\Event::listen(
+            \Laravel\Cashier\Events\WebhookReceived::class,
+            \Trakli\Cloud\Listeners\StripeWebhookListener::class
+        );
     }
 
     /**
