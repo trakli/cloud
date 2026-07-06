@@ -12,11 +12,10 @@ return new class () extends Migration {
     {
         Schema::create('ai_usage_counters', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id');
+            $table->morphs('owner');
             $table->timestamp('period_start');
             $table->integer('tokens_used');
 
-            $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();
         });
     }

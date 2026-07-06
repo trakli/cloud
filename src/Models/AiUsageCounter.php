@@ -4,6 +4,7 @@ namespace Trakli\Cloud\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AiUsageCounter extends Model
 {
@@ -20,7 +21,8 @@ class AiUsageCounter extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'user_id',
+        'owner_id',
+        'owner_type',
         'period_start',
         'tokens_used',
     ];
@@ -37,8 +39,8 @@ class AiUsageCounter extends Model
     /**
      * Get the user that owns this usage counter.
      */
-    public function user(): BelongsTo
+    public function owner(): MorphTo
     {
-        return $this->belongsTo(\App\Models\User::class);
+        return $this->morphTo();
     }
 }

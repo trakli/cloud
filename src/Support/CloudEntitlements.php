@@ -62,7 +62,8 @@ class CloudEntitlements implements Entitlements
         }
 
         $periodStart = Carbon::now()->startOfMonth();
-        $used = AiUsageCounter::where('user_id', $owner->id)
+        $used = AiUsageCounter::where('owner_id', $owner->id)
+            ->where('owner_type', get_class($owner))
             ->where('period_start', $periodStart)
             ->value('tokens_used') ?? 0;
 
@@ -87,21 +88,10 @@ class CloudEntitlements implements Entitlements
             return;
         }
 
-        // Extract message ID from debug backtrace to ensure idempotency
-        $messageId = $this->getCurrentChatMessageId();
-        if ($messageId === null) {
-            return;
-        }
-
-        $cacheKey = "cloud_ai_consumed_message_{$messageId}";
-        if (Cache::has($cacheKey)) {
-            return;
-        }
-        Cache::put($cacheKey, true, now()->addDays(30));
-
         $periodStart = Carbon::now()->startOfMonth();
 
-        $counter = AiUsageCounter::where('user_id', $owner->id)
+        $counter = AiUsageCounter::where('owner_id', $owner->id)
+            ->where('owner_type', get_class($owner))
             ->where('period_start', $periodStart)
             ->first();
 
@@ -109,7 +99,8 @@ class CloudEntitlements implements Entitlements
             $counter->increment('tokens_used', $amount);
         } else {
             AiUsageCounter::create([
-                'user_id' => $owner->id,
+                'owner_id' => $owner->id,
+                'owner_type' => get_class($owner),
                 'period_start' => $periodStart,
                 'tokens_used' => $amount,
             ]);
@@ -134,18 +125,5 @@ class CloudEntitlements implements Entitlements
         }
 
         return 'free';
-    }
-
-    /**
-     * Find the chat message ID from the backtrace to key the idempotent increment.
-     */
-    private function getCurrentChatMessageId(): ?int
-    {
-        foreach (debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT) as $frame) {
-            if (isset($frame['object']) && $frame['object'] instanceof \App\Jobs\ProcessChatMessageJob) {
-                return $frame['object']->assistantMessage->id;
-            }
-        }
-        return null;
     }
 }
