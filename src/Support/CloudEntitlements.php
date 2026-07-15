@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
-use Trakli\Cloud\Models\AiUsageCounter;
 
 class CloudEntitlements implements Entitlements
 {
@@ -62,10 +61,7 @@ class CloudEntitlements implements Entitlements
         }
 
         $periodStart = Carbon::now()->startOfMonth();
-        $used = AiUsageCounter::where('owner_id', $owner->id)
-            ->where('owner_type', get_class($owner))
-            ->where('period_start', $periodStart)
-            ->value('tokens_used') ?? 0;
+        $used = method_exists($owner, 'tokensUsed') ? $owner->tokensUsed($periodStart) : 0;
 
         return max(0, $allowance - $used);
     }
@@ -75,36 +71,7 @@ class CloudEntitlements implements Entitlements
      */
     public function consume(?Model $owner, string $meter, int $amount): void
     {
-        if ($meter !== 'ai_tokens' || $amount <= 0 || !$owner) {
-            return;
-        }
-
-        if (config('cloudplans.freemode_enabled', false)) {
-            return;
-        }
-
-        $planCode = $this->getPlanCode($owner);
-        if ($planCode === 'free') {
-            return;
-        }
-
-        $periodStart = Carbon::now()->startOfMonth();
-
-        $counter = AiUsageCounter::where('owner_id', $owner->id)
-            ->where('owner_type', get_class($owner))
-            ->where('period_start', $periodStart)
-            ->first();
-
-        if ($counter) {
-            $counter->increment('tokens_used', $amount);
-        } else {
-            AiUsageCounter::create([
-                'owner_id' => $owner->id,
-                'owner_type' => get_class($owner),
-                'period_start' => $periodStart,
-                'tokens_used' => $amount,
-            ]);
-        }
+        // Handled in trakli core via whilesmart/eloquent-agent-metrics
     }
 
     /**
