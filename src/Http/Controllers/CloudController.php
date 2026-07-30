@@ -6,6 +6,9 @@ use App\Http\Controllers\API\ApiController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Trakli\Cloud\Support\CloudPlanSync;
+use Whilesmart\Entitlements\Contracts\BillingProvider;
+use Whilesmart\Entitlements\Models\Plan;
 
 #[OA\Info(version: '1.0.0', title: 'Trakli Cloud Subscriptions API')]
 #[OA\Tag(
@@ -88,7 +91,7 @@ class CloudController extends ApiController
     {
         $this->config = config('cloudplans');
 
-        if (!$this->config) {
+        if (! $this->config) {
             abort(503, 'Trakli Cloud is not configured. Please publish the configuration file.');
         }
     }
@@ -133,7 +136,7 @@ class CloudController extends ApiController
 
         if ($region === null) {
             $basePlans = collect($config['plans'])
-                ->filter(fn($plan) => ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free')
+                ->filter(fn ($plan) => ($config['free_plan_enabled'] ?? false) || $plan['id'] !== 'free')
                 ->values();
 
             $regionsWithPricing = [];
@@ -161,7 +164,7 @@ class CloudController extends ApiController
         }
 
         // Validate region format
-        if (!preg_match('/^[a-z]{2,3}$/', $region)) {
+        if (! preg_match('/^[a-z]{2,3}$/', $region)) {
             $region = 'us';
         }
 
@@ -226,8 +229,6 @@ class CloudController extends ApiController
                 properties: [
                     new OA\Property(property: 'plan', type: 'string', enum: ['monthly', 'yearly'], example: 'monthly'),
                     new OA\Property(property: 'region', type: 'string', enum: ['us', 'eu', 'uk'], example: 'us'),
-                    new OA\Property(property: 'success_url', type: 'string', format: 'url', example: 'https://example.com/success'),
-                    new OA\Property(property: 'cancel_url', type: 'string', format: 'url', example: 'https://example.com/cancel'),
                 ]
             )
         )
@@ -243,7 +244,6 @@ class CloudController extends ApiController
                     property: 'data',
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'id', type: 'string', example: 'cs_test_a1b2c3'),
                         new OA\Property(property: 'url', type: 'string', example: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3'),
                     ]
                 )
@@ -259,6 +259,10 @@ class CloudController extends ApiController
         description: 'Unauthorized'
     )]
     #[OA\Response(
+        response: 404,
+        description: 'Plan not found'
+    )]
+    #[OA\Response(
         response: 500,
         description: 'Internal server error'
     )]
@@ -267,53 +271,34 @@ class CloudController extends ApiController
         $validation = $this->validateRequest($request, [
             'plan' => ['required', 'string', 'in:monthly,yearly'],
             'region' => ['nullable', 'string', 'in:us,eu,uk'],
-            'success_url' => ['nullable', 'url'],
-            'cancel_url' => ['nullable', 'url'],
         ]);
 
-        if (!$validation['isValidated']) {
+        if (! $validation['isValidated']) {
             return $this->failure($validation['message'], $validation['code'], $validation['errors'] ?? []);
         }
 
         $user = $request->user();
-        if (!$user) {
+
+        if (! $user) {
             return $this->failure('Unauthorized', 401);
         }
 
-        $plan = $request->input('plan');
-        $successUrl = $request->input('success_url', url('/checkout/success'));
-        $cancelUrl = $request->input('cancel_url', url('/checkout/cancel'));
+        $key = CloudPlanSync::key($request->input('plan'), $request->input('region', 'us'));
+        $model = config('entitlements.models.plan', Plan::class);
+        $plan = $model::where('key', $key)->first();
 
-        $config = $this->config;
-        $planConfig = $config['plans'][$plan] ?? null;
-        if (!$planConfig) {
+        if (! $plan) {
             return $this->failure('Plan not found', 404);
         }
 
-        $region = $request->input('region', 'us');
-        $regionData = $config['regions'][$region];
-
-        /** @var \Trakli\Cloud\Models\BillingCustomer $billingCustomer */
-        $billingCustomer = \Trakli\Cloud\Models\BillingCustomer::firstOrCreate([
-            'user_id' => $user->id,
-        ]);
-
-        $priceIdKey = "{$plan}_price_id";
-        $priceId = $regionData[$priceIdKey];
-
         try {
-            $checkout = $billingCustomer->newSubscription($plan, $priceId)
-                ->checkout([
-                    'success_url' => $successUrl,
-                    'cancel_url' => $cancelUrl,
-                ]);
-
             return $this->success([
-                'id' => $checkout->id,
-                'url' => $checkout->url,
+                'url' => app(BillingProvider::class)->createCheckout($user, $plan),
             ]);
         } catch (\Throwable $e) {
-            return $this->failure('Failed to initiate checkout: ' . $e->getMessage(), 500);
+            report($e);
+
+            return $this->failure('Failed to initiate checkout', 500);
         }
     }
 

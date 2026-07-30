@@ -4,6 +4,7 @@ namespace Trakli\Cloud;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Trakli\Cloud\Console\SyncPlansCommand;
 
 class CloudServiceProvider extends ServiceProvider
 {
@@ -14,8 +15,7 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        config(['cashier.model' => \Trakli\Cloud\Models\BillingCustomer::class]);
-        \Laravel\Cashier\Cashier::useCustomerModel(\Trakli\Cloud\Models\BillingCustomer::class);
+        //
     }
 
     /**
@@ -25,7 +25,16 @@ class CloudServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
         $this->publishConfig();
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // A cancelled Stripe subscription drops the owner back to the free
+        // plan instead of leaving them with none.
+        if (blank(config('entitlements-cashier.default_plan'))) {
+            config(['entitlements-cashier.default_plan' => 'free']);
+        }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([SyncPlansCommand::class]);
+        }
     }
 
     /**

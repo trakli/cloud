@@ -206,6 +206,41 @@ GET /api/cloud/benefits
 }
 ```
 
+## Billing
+
+Billing is provided by [`whilesmart/entitlements-cashier`](https://github.com/whilesmartphp/entitlements-cashier), the Cashier adapter for
+[`whilesmart/eloquent-entitlements`](https://github.com/whilesmartphp/eloquent-entitlements). The plugin owns the plan definitions and the
+checkout endpoint; the packages own the Stripe customer, the subscription
+tables, and the webhook that mirrors Stripe state locally.
+
+Set the Stripe credentials and point a Stripe webhook at `/stripe/webhook`:
+
+```env
+STRIPE_KEY=your-publishable-key-here
+STRIPE_SECRET=your-secret-key-here
+STRIPE_WEBHOOK_SECRET=your-webhook-signing-secret-here
+ENTITLEMENTS_CASHIER_SUCCESS_URL=https://app.example.com/billing/success
+ENTITLEMENTS_CASHIER_CANCEL_URL=https://app.example.com/billing/cancel
+```
+
+Then mirror the configured plans into the entitlements tables and create a
+Stripe price for each:
+
+```bash
+php artisan migrate
+php artisan cloud:sync-plans
+```
+
+A plan is created per plan and region, keyed `{plan}-{region}` (`monthly-us`,
+`yearly-eu`), because a Stripe price carries a single currency. The price comes
+from the amount in `config/cloudplans.php`, so no Stripe price id is kept by
+hand; re-run the command after changing an amount and a new Stripe price is
+created for it.
+
+`POST /api/v1/cloud/checkout` takes `plan` and `region` and returns the Stripe
+Checkout URL. Where Stripe returns the customer afterwards is configured above,
+not sent by the client.
+
 ## Development
 
 ### Configuration

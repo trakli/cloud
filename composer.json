@@ -1,5 +1,5 @@
 {
     "require": {
-        "laravel/cashier": "^16.6"
+        "whilesmart/entitlements-cashier": "^0.1.1"
     }
 }
