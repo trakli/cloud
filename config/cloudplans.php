@@ -70,6 +70,14 @@ return [
             'id' => 'free',
             'name' => 'Free',
             'interval' => 'lifetime',
+            'feature_keys' => [],
+            'limits' => [
+                'max_wallets' => 3,
+                'max_categories' => 10,
+            ],
+            'token_allowance' => (int) env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
+            // The strings below are marketing copy. What the gate reads is
+            // feature_keys, limits and token_allowance above.
             'features' => [
                 'Up to 3 wallets',
                 'Up to 10 categories',
@@ -84,6 +92,12 @@ return [
             'id' => 'monthly',
             'name' => 'Monthly',
             'interval' => 'month',
+            'feature_keys' => ['plaid'],
+            'limits' => [
+                'max_wallets' => null,
+                'max_categories' => null,
+            ],
+            'token_allowance' => (int) env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
             'features' => [
                 'Unlimited categories and wallets',
                 'Mobile and web access',
@@ -99,6 +113,12 @@ return [
             'id' => 'yearly',
             'name' => 'Yearly',
             'interval' => 'year',
+            'feature_keys' => ['plaid'],
+            'limits' => [
+                'max_wallets' => null,
+                'max_categories' => null,
+            ],
+            'token_allowance' => (int) env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
             'features' => [
                 'Everything in Monthly',
                 '2 months free (save ~17%)',
