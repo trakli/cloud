@@ -14,3 +14,6 @@ use Trakli\Cloud\Http\Controllers\CloudController;
 Route::get('/plans', [CloudController::class, 'getPlans'])->name('plans.index');
 
 Route::get('/benefits', [CloudController::class, 'getBenefits'])->name('benefits.index');
+
+Route::middleware('auth:sanctum')->post('/checkout', [CloudController::class, 'checkout'])->name('checkout');
+

@@ -4,7 +4,11 @@ namespace Trakli\Cloud\Http\Controllers;
 
 use App\Http\Controllers\API\ApiController;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Trakli\Cloud\Support\CloudPlanSync;
+use Whilesmart\Entitlements\Contracts\BillingProvider;
+use Whilesmart\Entitlements\Models\Plan;
 
 #[OA\Info(version: '1.0.0', title: 'Trakli Cloud Subscriptions API')]
 #[OA\Tag(
@@ -120,7 +124,7 @@ class CloudController extends ApiController
             ]
         )
     )]
-    public function getPlans(\Illuminate\Http\Request $request): JsonResponse
+    public function getPlans(Request $request): JsonResponse
     {
         $config = $this->config;
 
@@ -207,6 +211,95 @@ class CloudController extends ApiController
             'benefits' => $config['benefits'] ?? [],
             'trial_days' => $config['trial_days'] ?? 3,
         ]);
+    }
+
+    /**
+     * Create a Stripe checkout session for a cloud plan
+     */
+    #[OA\Post(
+        path: '/checkout',
+        summary: 'Create checkout session',
+        description: 'Creates a Stripe checkout session for a specific subscription plan and region.',
+        tags: ['Cloud'],
+        servers: [new OA\Server(url: '/api/v1/cloud', description: 'Cloud Plugin API')],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'plan', type: 'string', enum: ['monthly', 'yearly'], example: 'monthly'),
+                    new OA\Property(property: 'region', type: 'string', enum: ['us', 'eu', 'uk'], example: 'us'),
+                ]
+            )
+        )
+    )]
+    #[OA\Response(
+        response: 200,
+        description: 'Checkout session created successfully',
+        content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'success', type: 'boolean', example: true),
+                new OA\Property(property: 'message', type: 'string', example: 'Operation successful'),
+                new OA\Property(
+                    property: 'data',
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'url', type: 'string', example: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3'),
+                    ]
+                )
+            ]
+        )
+    )]
+    #[OA\Response(
+        response: 400,
+        description: 'Bad Request / Validation error'
+    )]
+    #[OA\Response(
+        response: 401,
+        description: 'Unauthorized'
+    )]
+    #[OA\Response(
+        response: 404,
+        description: 'Plan not found'
+    )]
+    #[OA\Response(
+        response: 500,
+        description: 'Internal server error'
+    )]
+    public function checkout(Request $request): JsonResponse
+    {
+        $validation = $this->validateRequest($request, [
+            'plan' => ['required', 'string', 'in:monthly,yearly'],
+            'region' => ['nullable', 'string', 'in:us,eu,uk'],
+        ]);
+
+        if (! $validation['isValidated']) {
+            return $this->failure($validation['message'], $validation['code'], $validation['errors'] ?? []);
+        }
+
+        $user = $request->user();
+
+        if (! $user) {
+            return $this->failure('Unauthorized', 401);
+        }
+
+        $key = CloudPlanSync::key($request->input('plan'), $request->input('region', 'us'));
+        $model = config('entitlements.models.plan', Plan::class);
+        $plan = $model::where('key', $key)->first();
+
+        if (! $plan) {
+            return $this->failure('Plan not found', 404);
+        }
+
+        try {
+            return $this->success([
+                'url' => app(BillingProvider::class)->createCheckout($user, $plan),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->failure('Failed to initiate checkout', 500);
+        }
     }
 
     /**
