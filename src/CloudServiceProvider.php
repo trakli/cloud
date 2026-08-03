@@ -5,6 +5,7 @@ namespace Trakli\Cloud;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Trakli\Cloud\Console\SyncPlansCommand;
+use Whilesmart\Entitlements\Contracts\Entitlements;
 
 class CloudServiceProvider extends ServiceProvider
 {
@@ -31,7 +32,7 @@ class CloudServiceProvider extends ServiceProvider
         if (blank(config('entitlements-cashier.default_plan'))) {
             config(['entitlements-cashier.default_plan' => 'free']);
         }
-
+        $this->app->singleton(Entitlements::class, \Trakli\Cloud\Support\CloudEntitlements::class);
         if ($this->app->runningInConsole()) {
             $this->commands([SyncPlansCommand::class]);
         }
