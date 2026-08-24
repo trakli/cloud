@@ -2,10 +2,10 @@
 
 namespace Trakli\Cloud\Http\Middleware;
 
-use App\Contracts\Entitlements;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Whilesmart\Entitlements\Contracts\Entitlements;
 
 class GateFeature
 {
