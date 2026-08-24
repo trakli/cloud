@@ -75,7 +75,7 @@ return [
                 'max_wallets' => 3,
                 'max_categories' => 10,
             ],
-            'token_allowance' => (int) env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
+            'token_allowance' => env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
             // The strings below are marketing copy. What the gate reads is
             // feature_keys, limits and token_allowance above.
             'features' => [
@@ -97,7 +97,7 @@ return [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => (int) env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
             'features' => [
                 'Unlimited categories and wallets',
                 'Mobile and web access',
@@ -118,7 +118,7 @@ return [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => (int) env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
             'features' => [
                 'Everything in Monthly',
                 '2 months free (save ~17%)',

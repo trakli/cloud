@@ -16,11 +16,14 @@ class TokenMeterUsage implements UsageMeter
 
     public function remaining(?Model $owner, string $meter, int|float $allowance): int|float
     {
-        if ($meter !== self::METER || is_infinite($allowance)) {
+        if (is_infinite($allowance)) {
             return INF;
         }
 
-        if ($owner === null) {
+        // Any other meter is someone else's to count, and nothing has been
+        // spent against it here, so its allowance comes back untouched rather
+        // than as unlimited.
+        if ($meter !== self::METER || $owner === null) {
             return $allowance;
         }
 

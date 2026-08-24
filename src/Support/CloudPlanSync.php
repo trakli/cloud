@@ -73,13 +73,28 @@ class CloudPlanSync
         $plan->name = $name;
         $plan->features = $this->features($source);
         $plan->limits = $source['limits'] ?? [];
-        $plan->meters = ['ai_tokens' => (int) ($source['token_allowance'] ?? 0)];
+        $plan->meters = ['ai_tokens' => $this->allowance($source)];
 
         if ($price !== null) {
             $plan->metadata = array_merge($plan->metadata ?? [], ['price' => $price]);
         }
 
         $plan->save();
+    }
+
+    /**
+     * A plan states an unlimited allowance as null, the same way its limits
+     * do. Leaving the allowance out is not the same thing: that is none.
+     */
+    private function allowance(array $source): ?int
+    {
+        if (! array_key_exists('token_allowance', $source)) {
+            return 0;
+        }
+
+        $allowance = $source['token_allowance'];
+
+        return $allowance === null ? null : (int) $allowance;
     }
 
     /**
