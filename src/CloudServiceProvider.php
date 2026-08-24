@@ -33,6 +33,9 @@ class CloudServiceProvider extends ServiceProvider
         $this->publishConfig();
         $this->enforcePlans();
 
+        // Register feature gating middleware
+        $this->app['router']->aliasMiddleware('cloud.feature', \Trakli\Cloud\Http\Middleware\GateFeature::class);
+
         // A cancelled Stripe subscription drops the owner back to the free
         // plan instead of leaving them with none.
         if (blank(config('entitlements-cashier.default_plan'))) {
