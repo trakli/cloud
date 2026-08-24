@@ -36,7 +36,7 @@ class CloudPlanSync
             );
 
             if ($regions === []) {
-                $this->write(self::key($id), $name, null);
+                $this->write(self::key($id), $name, $plan, null);
                 $synced++;
 
                 continue;
@@ -46,6 +46,7 @@ class CloudPlanSync
                 $this->write(
                     self::key($id, $code),
                     sprintf('%s (%s)', $name, $region['name'] ?? $code),
+                    $plan,
                     [
                         'amount_cents' => (int) round(((float) $region[$priceKey]) * 100),
                         'currency' => strtolower((string) ($region['currency'] ?? 'usd')),
@@ -64,17 +65,44 @@ class CloudPlanSync
      * signature the price sync records is not lost and Stripe prices are not
      * recreated on every run.
      */
-    private function write(string $key, string $name, ?array $price): void
+    private function write(string $key, string $name, array $source, ?array $price): void
     {
         $model = config('entitlements.models.plan', Plan::class);
 
         $plan = $model::firstOrNew(['key' => $key]);
         $plan->name = $name;
+        $plan->features = $this->features($source);
+        $plan->limits = $source['limits'] ?? [];
+        $plan->meters = ['ai_tokens' => $this->allowance($source)];
 
         if ($price !== null) {
             $plan->metadata = array_merge($plan->metadata ?? [], ['price' => $price]);
         }
 
         $plan->save();
+    }
+
+    /**
+     * A plan states an unlimited allowance as null, the same way its limits
+     * do. Leaving the allowance out is not the same thing: that is none.
+     */
+    private function allowance(array $source): ?int
+    {
+        if (! array_key_exists('token_allowance', $source)) {
+            return 0;
+        }
+
+        $allowance = $source['token_allowance'];
+
+        return $allowance === null ? null : (int) $allowance;
+    }
+
+    /**
+     * Features are configured as a list of keys but gated by lookup, so the
+     * list becomes a map.
+     */
+    private function features(array $source): array
+    {
+        return array_fill_keys($source['feature_keys'] ?? [], true);
     }
 }

@@ -241,6 +241,36 @@ created for it.
 Checkout URL. Where Stripe returns the customer afterwards is configured above,
 not sent by the client.
 
+## Plans and gating
+
+Each plan carries three machine-readable keys alongside its marketing copy:
+`feature_keys` (what the plan unlocks), `limits` (`max_wallets`,
+`max_categories`, where `null` means unlimited) and `token_allowance` (the AI
+meter). `cloud:sync-plans` copies all three onto the plan rows, so the gate
+reads the database, not the config, at request time.
+
+With this plugin enabled the core gate is answered from the owner's plan rather
+than allowing everything. An owner with no subscription is treated as being on
+the free plan, so their limits apply instead of reading as unlimited. Setting
+`CLOUD_FREEMODE_ENABLED=true` leaves the permissive default in place and turns
+enforcement off entirely.
+
+Gate a route on a feature with the `feature` middleware, which answers 402 with
+the reason the plan does not cover it:
+
+```php
+Route::middleware('feature:plaid')->group(function () {
+    // ...
+});
+```
+
+The AI token allowance on each plan is counted against the token usage core
+already records, so the plugin keeps no counter of its own and the two cannot
+drift apart. Usage is measured from the start of the calendar month, whatever
+the billing interval, so a yearly plan gets its allowance back every month.
+Once an owner is over the allowance, a chat turn answers with a quota message
+instead of calling the model.
+
 ## Development
 
 ### Configuration
