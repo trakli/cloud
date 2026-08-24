@@ -6,8 +6,10 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Trakli\Cloud\Console\SyncPlansCommand;
 use Trakli\Cloud\Support\FreePlanFallbackSource;
+use Trakli\Cloud\Support\TokenMeterUsage;
 use Whilesmart\Entitlements\Contracts\Entitlements;
 use Whilesmart\Entitlements\Contracts\PlanSource;
+use Whilesmart\Entitlements\Contracts\UsageMeter;
 use Whilesmart\Entitlements\Support\PlanEntitlements;
 
 class CloudServiceProvider extends ServiceProvider
@@ -54,6 +56,7 @@ class CloudServiceProvider extends ServiceProvider
         }
 
         $this->app->singleton(PlanSource::class, FreePlanFallbackSource::class);
+        $this->app->singleton(UsageMeter::class, TokenMeterUsage::class);
         $this->app->singleton(Entitlements::class, PlanEntitlements::class);
     }
 

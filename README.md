@@ -264,8 +264,12 @@ Route::middleware('feature:plaid')->group(function () {
 });
 ```
 
-The AI token allowance resolves from the plan but nothing counts against it
-yet; that needs a usage meter, which is not in this plugin.
+The AI token allowance on each plan is counted against the token usage core
+already records, so the plugin keeps no counter of its own and the two cannot
+drift apart. Usage is measured from the start of the calendar month, whatever
+the billing interval, so a yearly plan gets its allowance back every month.
+Once an owner is over the allowance, a chat turn answers with a quota message
+instead of calling the model.
 
 ## Development
 
