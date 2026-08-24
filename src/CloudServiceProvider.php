@@ -5,7 +5,10 @@ namespace Trakli\Cloud;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Trakli\Cloud\Console\SyncPlansCommand;
+use Trakli\Cloud\Support\FreePlanFallbackSource;
 use Whilesmart\Entitlements\Contracts\Entitlements;
+use Whilesmart\Entitlements\Contracts\PlanSource;
+use Whilesmart\Entitlements\Support\PlanEntitlements;
 
 class CloudServiceProvider extends ServiceProvider
 {
@@ -26,16 +29,32 @@ class CloudServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
         $this->publishConfig();
+        $this->enforcePlans();
 
         // A cancelled Stripe subscription drops the owner back to the free
         // plan instead of leaving them with none.
         if (blank(config('entitlements-cashier.default_plan'))) {
             config(['entitlements-cashier.default_plan' => 'free']);
         }
-        $this->app->singleton(Entitlements::class, \Trakli\Cloud\Support\CloudEntitlements::class);
+
         if ($this->app->runningInConsole()) {
             $this->commands([SyncPlansCommand::class]);
         }
+    }
+
+    /**
+     * Replace the permissive default with the plan-backed implementation.
+     * Bound here rather than in register() so it wins whatever order the
+     * plugin engine loads this provider in.
+     */
+    protected function enforcePlans(): void
+    {
+        if (config('cloudplans.freemode_enabled', false)) {
+            return;
+        }
+
+        $this->app->singleton(PlanSource::class, FreePlanFallbackSource::class);
+        $this->app->singleton(Entitlements::class, PlanEntitlements::class);
     }
 
     /**
