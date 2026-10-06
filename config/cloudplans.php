@@ -4,7 +4,7 @@ return [
     'overview' => [
         'benefits' => [
             'title' => 'Why Create a Trakli Cloud Account?',
-            'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support — giving you peace of mind and full control of your finances wherever you go.',
+            'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support, giving you peace of mind and full control of your finances wherever you go.',
         ],
         'plans' => [
             'title' => 'Upgrade to Premium',
@@ -15,7 +15,7 @@ return [
     'benefits' => [
         [
             'title' => 'Access Anywhere',
-            'description' => 'Use Trakli on your phone, tablet, or browser — your data stays synced across all devices.',
+            'description' => 'Use Trakli on your phone, tablet, or browser. Your data stays synced across all devices.',
         ],
         [
             'title' => 'Secure Cloud Backups',
@@ -31,12 +31,12 @@ return [
         ],
         [
             'title' => 'Automatic Updates',
-            'description' => 'Stay current with improvements and fixes — no manual updates needed.',
+            'description' => 'Stay current with improvements and fixes. No manual updates needed.',
         ],
     ],
 
     'trial_days' => 3,
-    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', false),
+    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', true),
     'freemode_enabled' => (bool) env('CLOUD_FREEMODE_ENABLED', false),
     'regions' => [
         'us' => [
@@ -80,8 +80,8 @@ return [
             // feature_keys, limits and token_allowance above.
             'features' => [
                 'Up to 3 wallets',
-                'Up to 10 categories',
-                'Community support',
+                'Up to 10 new custom categories',
+                'Manual entry, reports and basic imports',
             ],
             'cta' => [
                 'text' => 'Current Plan',
@@ -92,17 +92,16 @@ return [
             'id' => 'monthly',
             'name' => 'Monthly',
             'interval' => 'month',
-            'feature_keys' => ['plaid'],
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => 100000,
             'features' => [
-                'Unlimited categories and wallets',
-                'Mobile and web access',
-                'CSV exports',
-                'Community support',
+                'Unlimited wallets and categories',
+                'Unlimited bank connections and accounts',
+                '100,000 AI tokens per UTC calendar month',
             ],
             'cta' => [
                 'text' => env('CLOUD_PLAN_CTA_TEXT', 'Start 3-Day Free Trial'),
@@ -113,12 +112,12 @@ return [
             'id' => 'yearly',
             'name' => 'Yearly',
             'interval' => 'year',
-            'feature_keys' => ['plaid'],
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => 100000,
             'features' => [
                 'Everything in Monthly',
                 '2 months free (save ~17%)',

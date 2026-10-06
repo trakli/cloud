@@ -36,15 +36,17 @@ class TokenMeterUsage implements UsageMeter
         // as well would bill the owner twice for the same tokens.
     }
 
-    /**
-     * Tokens spent in the current period. Owners that do not record usage at
-     * all have spent nothing, which keeps a future owner type from failing
-     * closed before it is metered.
-     */
-    private function used(Model $owner): int
+    public function used(Model $owner): int
     {
-        return method_exists($owner, 'tokensUsed')
-            ? (int) $owner->tokensUsed(now()->startOfMonth())
-            : 0;
+        if (! method_exists($owner, 'tokenUsages')) {
+            throw new \RuntimeException('The billing owner does not support token usage accounting.');
+        }
+
+        $start = now('UTC')->startOfMonth();
+
+        return (int) $owner->tokenUsages()
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $start->copy()->addMonth())
+            ->sum('total_tokens');
     }
 }

@@ -219,8 +219,8 @@ Set the Stripe credentials and point a Stripe webhook at `/stripe/webhook`:
 STRIPE_KEY=your-publishable-key-here
 STRIPE_SECRET=your-secret-key-here
 STRIPE_WEBHOOK_SECRET=your-webhook-signing-secret-here
-ENTITLEMENTS_CASHIER_SUCCESS_URL=https://app.example.com/billing/success
-ENTITLEMENTS_CASHIER_CANCEL_URL=https://app.example.com/billing/cancel
+ENTITLEMENTS_CASHIER_SUCCESS_URL=https://app.example.com/billing?checkout=success
+ENTITLEMENTS_CASHIER_CANCEL_URL=https://app.example.com/billing?checkout=cancelled
 ```
 
 Then mirror the configured plans into the entitlements tables and create a
@@ -237,7 +237,7 @@ from the amount in `config/cloudplans.php`, so no Stripe price id is kept by
 hand; re-run the command after changing an amount and a new Stripe price is
 created for it.
 
-`POST /api/v1/cloud/checkout` takes `plan` and `region` and returns the Stripe
+`POST /api/v1/cloud/billing/checkout` takes `plan` and `region` and returns the Stripe
 Checkout URL. Where Stripe returns the customer afterwards is configured above,
 not sent by the client.
 
@@ -298,3 +298,19 @@ php artisan test
 ## License
 
 This plugin is open-source software licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+
+## Billing status and management
+
+Authenticated clients read `GET /api/v1/cloud/billing/status` for subscription state,
+paid access, paid-through date, limits, the billing-account flag and monthly AI usage.
+`POST /api/v1/cloud/billing/portal` returns the customer portal URL. Checkout return
+parameters never grant access. The client waits for billing status to confirm it.
+
+Paid plans include 100,000 input and output tokens per UTC calendar month. Trial
+usage shares the same pool. Converting a trial or changing plans does not reset it.
+The app and workers use the same Redis cache for owner usage locks.
+
+Free owners can create three wallets and ten custom categories. Categories created
+before this release and server-seeded defaults are exempt. Downgrades preserve
+existing records and their ordinary finance access.
