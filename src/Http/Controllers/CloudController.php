@@ -42,8 +42,8 @@ use Whilesmart\Entitlements\Models\Plan;
     properties: [
         new OA\Property(property: 'id', type: 'string', example: 'monthly'),
         new OA\Property(property: 'name', type: 'string', example: 'Monthly'),
-        new OA\Property(property: 'price', type: 'number', example: 5.00),
-        new OA\Property(property: 'price_formatted', type: 'string', example: '$5.00'),
+        new OA\Property(property: 'price', type: 'number', example: 8.99),
+        new OA\Property(property: 'price_formatted', type: 'string', example: '$8.99'),
         new OA\Property(property: 'currency', type: 'string', example: 'USD'),
         new OA\Property(property: 'interval', type: 'string', example: 'month'),
         new OA\Property(property: 'trial_days', type: 'integer', example: 3),
