@@ -39,7 +39,6 @@ class CloudIntegration implements IntegrationUi
         return [
             'slots' => ['settings.integrations', 'sidebar.nav'],
             'card' => ['title' => 'Premium', 'cta' => 'Manage plan', 'href' => '/billing'],
-            'component' => 'premium.billing',
             'show_when_unconfigured' => true,
         ];
     }

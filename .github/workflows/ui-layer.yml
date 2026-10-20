@@ -1,0 +1,38 @@
+name: UI layer checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    env:
+      TRAKLI_UI_LAYERS: ../ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: trakli/webui
+          ref: eacbb7ec8f04c0444be272671dee127d3c8b48c1
+          path: .host-ui
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: .host-ui/package-lock.json
+      - name: Install host dependencies
+        working-directory: .host-ui
+        run: npm ci
+      - name: Check layer lint and formatting
+        working-directory: .host-ui
+        run: npm run check:plugins
+      - name: Run host and layer tests
+        working-directory: .host-ui
+        run: npm run test:run
+      - name: Build with layer
+        working-directory: .host-ui
+        run: npm run build
