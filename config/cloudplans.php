@@ -73,14 +73,14 @@ return [
             'feature_keys' => [],
             'limits' => [
                 'max_wallets' => 3,
-                'max_categories' => 10,
+                'max_categories' => 5,
             ],
             'token_allowance' => env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
             // The strings below are marketing copy. What the gate reads is
             // feature_keys, limits and token_allowance above.
             'features' => [
                 'Up to 3 wallets',
-                'Up to 10 new custom categories',
+                'Up to 5 new custom categories',
                 'Manual entry, reports and basic imports',
             ],
             'cta' => [

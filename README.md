@@ -311,6 +311,6 @@ Paid plans include 100,000 input and output tokens per UTC calendar month. Trial
 usage shares the same pool. Converting a trial or changing plans does not reset it.
 The app and workers use the same Redis cache for owner usage locks.
 
-Free owners can create three wallets and ten custom categories. Categories created
+Free owners can create three wallets and five custom categories. Categories created
 before this release and server-seeded defaults are exempt. Downgrades preserve
 existing records and their ordinary finance access.

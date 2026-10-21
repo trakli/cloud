@@ -11,7 +11,7 @@ const current = {
   has_billing_account: false,
   status: 'free',
   paid_through: null,
-  limits: { wallets: 3, categories: 10, bank_connections: 0 },
+  limits: { wallets: 3, categories: 5, bank_connections: 0 },
   ai_usage: {
     used: 0,
     allowance: 0,
