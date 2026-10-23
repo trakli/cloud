@@ -21,7 +21,7 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->mergeConfigFrom(__DIR__.'/../config/cloudplans.php', 'cloudplans');
     }
 
     /**
@@ -29,9 +29,15 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->app->make(\App\Services\IntegrationRegistry::class)->register(new CloudIntegration());
         $this->registerRoutes();
         $this->publishConfig();
         $this->enforcePlans();
+        app(\Illuminate\Routing\Router::class)->aliasMiddleware('feature', \App\Http\Middleware\RequireFeature::class);
+
+        if (config('entitlements-cashier.trial_days') === null) {
+            config(['entitlements-cashier.trial_days' => config('cloudplans.trial_days', 3)]);
+        }
 
         // A cancelled Stripe subscription drops the owner back to the free
         // plan instead of leaving them with none.

@@ -1,5 +1,6 @@
 {
     "require": {
-        "whilesmart/entitlements-cashier": "^0.1.1"
+        "predis/predis": "^3.0",
+        "whilesmart/entitlements-cashier": "^0.2.1"
     }
 }

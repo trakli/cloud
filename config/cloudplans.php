@@ -4,7 +4,7 @@ return [
     'overview' => [
         'benefits' => [
             'title' => 'Why Create a Trakli Cloud Account?',
-            'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support — giving you peace of mind and full control of your finances wherever you go.',
+            'description' => 'By registering for a Trakli Cloud account, you unlock seamless access across all your devices, secure cloud backups, exclusive feature updates, and priority support, giving you peace of mind and full control of your finances wherever you go.',
         ],
         'plans' => [
             'title' => 'Upgrade to Premium',
@@ -15,7 +15,7 @@ return [
     'benefits' => [
         [
             'title' => 'Access Anywhere',
-            'description' => 'Use Trakli on your phone, tablet, or browser — your data stays synced across all devices.',
+            'description' => 'Use Trakli on your phone, tablet, or browser. Your data stays synced across all devices.',
         ],
         [
             'title' => 'Secure Cloud Backups',
@@ -31,37 +31,37 @@ return [
         ],
         [
             'title' => 'Automatic Updates',
-            'description' => 'Stay current with improvements and fixes — no manual updates needed.',
+            'description' => 'Stay current with improvements and fixes. No manual updates needed.',
         ],
     ],
 
     'trial_days' => 3,
-    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', false),
+    'free_plan_enabled' => (bool) env('CLOUD_FREE_PLAN_ENABLED', true),
     'freemode_enabled' => (bool) env('CLOUD_FREEMODE_ENABLED', false),
     'regions' => [
         'us' => [
             'name' => 'United States',
             'currency' => 'USD',
-            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_US', 5.00),
-            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_US', 50.00),
-            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_US', '$5.00'),
-            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_US', '$50.00'),
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_US', 8.99),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_US', 86.28),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_US', '$8.99'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_US', '$86.28'),
         ],
         'eu' => [
             'name' => 'Europe',
             'currency' => 'EUR',
-            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_EU', 5.00),
-            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_EU', 50.00),
-            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_EU', '€5.00'),
-            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_EU', '€50.00'),
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_EU', 8.99),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_EU', 86.28),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_EU', '€8.99'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_EU', '€86.28'),
         ],
         'uk' => [
             'name' => 'United Kingdom',
             'currency' => 'GBP',
-            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_UK', 5.00),
-            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_UK', 50.00),
-            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_UK', '£5.00'),
-            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_UK', '£50.00'),
+            'monthly_price' => (float) env('CLOUD_PLAN_MONTHLY_PRICE_UK', 8.99),
+            'yearly_price' => (float) env('CLOUD_PLAN_YEARLY_PRICE_UK', 86.28),
+            'monthly_price_formatted' => env('CLOUD_PLAN_MONTHLY_PRICE_FORMATTED_UK', '£8.99'),
+            'yearly_price_formatted' => env('CLOUD_PLAN_YEARLY_PRICE_FORMATTED_UK', '£86.28'),
         ],
     ],
 
@@ -73,15 +73,15 @@ return [
             'feature_keys' => [],
             'limits' => [
                 'max_wallets' => 3,
-                'max_categories' => 10,
+                'max_categories' => 5,
             ],
             'token_allowance' => env('CLOUD_PLAN_FREE_TOKEN_ALLOWANCE', 0),
             // The strings below are marketing copy. What the gate reads is
             // feature_keys, limits and token_allowance above.
             'features' => [
                 'Up to 3 wallets',
-                'Up to 10 categories',
-                'Community support',
+                'Up to 5 new custom categories',
+                'Manual entry, reports and basic imports',
             ],
             'cta' => [
                 'text' => 'Current Plan',
@@ -92,17 +92,16 @@ return [
             'id' => 'monthly',
             'name' => 'Monthly',
             'interval' => 'month',
-            'feature_keys' => ['plaid'],
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => env('CLOUD_PLAN_MONTHLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => 100000,
             'features' => [
-                'Unlimited categories and wallets',
-                'Mobile and web access',
-                'CSV exports',
-                'Community support',
+                'Unlimited wallets and categories',
+                'Unlimited bank connections and accounts',
+                '100,000 AI tokens per UTC calendar month',
             ],
             'cta' => [
                 'text' => env('CLOUD_PLAN_CTA_TEXT', 'Start 3-Day Free Trial'),
@@ -113,15 +112,15 @@ return [
             'id' => 'yearly',
             'name' => 'Yearly',
             'interval' => 'year',
-            'feature_keys' => ['plaid'],
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
             ],
-            'token_allowance' => env('CLOUD_PLAN_YEARLY_TOKEN_ALLOWANCE', 50000),
+            'token_allowance' => 100000,
             'features' => [
                 'Everything in Monthly',
-                '2 months free (save ~17%)',
+                'Save 20% with yearly billing',
                 'Premium support',
                 'Early feature access',
                 'Priority voting on roadmap',

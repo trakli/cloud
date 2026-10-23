@@ -42,8 +42,8 @@ use Whilesmart\Entitlements\Models\Plan;
     properties: [
         new OA\Property(property: 'id', type: 'string', example: 'monthly'),
         new OA\Property(property: 'name', type: 'string', example: 'Monthly'),
-        new OA\Property(property: 'price', type: 'number', example: 5.00),
-        new OA\Property(property: 'price_formatted', type: 'string', example: '$5.00'),
+        new OA\Property(property: 'price', type: 'number', example: 8.99),
+        new OA\Property(property: 'price_formatted', type: 'string', example: '$8.99'),
         new OA\Property(property: 'currency', type: 'string', example: 'USD'),
         new OA\Property(property: 'interval', type: 'string', example: 'month'),
         new OA\Property(property: 'trial_days', type: 'integer', example: 3),
@@ -129,7 +129,7 @@ class CloudController extends ApiController
         $config = $this->config;
 
         if ($config['freemode_enabled'] ?? false) {
-            return \response()->json([]);
+            return $this->success([]);
         }
 
         $region = $request->query('region');
@@ -305,6 +305,57 @@ class CloudController extends ApiController
     /**
      * Maps plan data to include pricing and currency information.
      */
+    public function billingStatus(Request $request): JsonResponse
+    {
+        $owner = $request->user();
+        $entitlements = app(\Whilesmart\Entitlements\Contracts\Entitlements::class);
+        $model = config('entitlements.models.subscription', \Whilesmart\Entitlements\Models\Subscription::class);
+        $subscription = $model::where('owner_type', $owner->getMorphClass())
+            ->where('owner_id', $owner->getKey())->latest('id')->first();
+        $used = app(\Trakli\Cloud\Support\TokenMeterUsage::class)->used($owner);
+        $paid = $entitlements->allows($owner, 'bank_connections');
+        $start = now('UTC')->startOfMonth();
+
+        return $this->success([
+            'has_billing_account' => app(config('entitlements-cashier.billing_profile_model', \Whilesmart\EntitlementsCashier\Models\BillingProfile::class))->newQuery()
+                ->where('owner_type', $owner->getMorphClass())->where('owner_id', $owner->getKey())->whereNotNull('stripe_id')->exists(),
+            'paid_access' => $paid,
+            'status' => $subscription?->status?->value ?? 'free',
+            'paid_through' => $subscription?->current_period_end?->toIso8601String(),
+            'limits' => [
+                'wallets' => $entitlements->limit($owner, 'max_wallets'),
+                'categories' => $entitlements->limit($owner, 'max_categories'),
+                'bank_connections' => $paid ? null : 0,
+            ],
+            'ai_usage' => [
+                'used' => $used,
+                'allowance' => $paid ? 100000 : 0,
+                'remaining' => $paid ? max(0, 100000 - $used) : 0,
+                'period_start' => $start->toIso8601String(),
+                'period_end' => $start->copy()->addMonth()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function billingPortal(Request $request): JsonResponse
+    {
+        $model = config('entitlements-cashier.billing_profile_model', \Whilesmart\EntitlementsCashier\Models\BillingProfile::class);
+        $profile = $model::where('owner_type', $request->user()->getMorphClass())
+            ->where('owner_id', $request->user()->getKey())->first();
+
+        if (! $profile?->stripe_id) {
+            return $this->failure('No billing account exists yet.', 409);
+        }
+
+        try {
+            return $this->success(['url' => $profile->billingPortalUrl(config('entitlements-cashier.portal_return_url', config('app.url')))]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->failure('Billing management is unavailable.', 503);
+        }
+    }
+
     private function mapPlanData(array $plan, array $regionData, bool $pricesOnly = false): array
     {
         $priceKey = $plan['interval'] === 'month' ? 'monthly_price' : 'yearly_price';

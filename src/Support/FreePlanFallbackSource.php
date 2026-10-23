@@ -30,7 +30,13 @@ class FreePlanFallbackSource implements PlanSource
         $plan = $model::where('key', CloudPlanSync::key('free'))->first();
 
         if ($plan === null) {
-            return null;
+            $source = config('cloudplans.plans.free', []);
+
+            return ResolvedPlan::of(
+                array_fill_keys($source['feature_keys'] ?? [], true),
+                $source['limits'] ?? ['max_wallets' => 3, 'max_categories' => 5],
+                ['ai_tokens' => (int) ($source['token_allowance'] ?? 0)],
+            );
         }
 
         return ResolvedPlan::of(

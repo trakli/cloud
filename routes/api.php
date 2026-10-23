@@ -17,3 +17,9 @@ Route::get('/benefits', [CloudController::class, 'getBenefits'])->name('benefits
 
 Route::middleware('auth:sanctum')->post('/checkout', [CloudController::class, 'checkout'])->name('checkout');
 
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/billing/status', [CloudController::class, 'billingStatus']);
+    Route::post('/billing/checkout', [CloudController::class, 'checkout']);
+    Route::post('/billing/portal', [CloudController::class, 'billingPortal']);
+});
