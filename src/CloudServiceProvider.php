@@ -5,6 +5,7 @@ namespace Trakli\Cloud;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Trakli\Cloud\Console\SyncPlansCommand;
+use Trakli\Cloud\Engagement\BillingMetricProvider;
 use Trakli\Cloud\Support\FreePlanFallbackSource;
 use Trakli\Cloud\Support\TokenMeterUsage;
 use Whilesmart\Admin\Offers\FreePasses;
@@ -35,6 +36,10 @@ class CloudServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->publishConfig();
         $this->enforcePlans();
+        config(['engagement.providers' => array_values(array_unique([
+            BillingMetricProvider::class,
+            ...(array) config('engagement.providers', []),
+        ]))]);
         config(['admin.offer_providers' => array_values(array_unique(array_merge(
             (array) config('admin.offer_providers', []),
             [StripePromotionCodes::class, FreePasses::class],
