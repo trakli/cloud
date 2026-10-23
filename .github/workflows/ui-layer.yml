@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: trakli/webui
-          ref: eacbb7ec8f04c0444be272671dee127d3c8b48c1
+          ref: 5caf9d16b0cfb392b2d6ddb42930c98cb4b03caf
           path: .host-ui
       - uses: actions/setup-node@v4
         with:

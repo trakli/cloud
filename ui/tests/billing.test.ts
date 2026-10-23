@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import BillingPage from '../pages/billing.vue';
+import BillingSettings from '../components/BillingSettings.vue';
 
 const request = vi.hoisted(() => vi.fn());
+const navigate = vi.hoisted(() => vi.fn());
 vi.mock('~/composables/useApi', () => ({ useApi: () => request }));
-vi.stubGlobal('definePageMeta', vi.fn());
-vi.stubGlobal('navigateTo', vi.fn());
+vi.stubGlobal('navigateTo', navigate);
+
 const current = {
   paid_access: false,
   has_billing_account: false,
@@ -20,119 +21,138 @@ const current = {
     period_end: '2026-11-01T00:00:00Z'
   }
 };
-function render() {
-  return mount(BillingPage, {
-    global: {
-      stubs: {
-        TCard: { template: '<div><slot /></div>' },
-        ComponentLoader: { template: '<div><slot /></div>' },
-        TButton: {
-          props: ['text', 'disabled'],
-          template: '<button :disabled="disabled">{{ text }}</button>'
-        }
+
+const plans = {
+  trial_days: 3,
+  regions: {
+    us: {
+      name: 'United States',
+      currency: 'USD',
+      prices: {
+        monthly: { price: 8.99, price_formatted: '$8.99' },
+        yearly: { price: 86.28, price_formatted: '$86.28' }
       }
     }
-  });
-}
-beforeEach(() => {
-  request.mockReset();
-  vi.stubGlobal('useRoute', () => ({ query: { checkout: 'success' } }));
-  vi.stubGlobal('useRouter', () => ({ hasRoute: () => true }));
-  request.mockImplementation((path: string) =>
+  }
+};
+
+function respond(status: object, pricing: object = plans) {
+  request.mockImplementation((path: string, options?: { method?: string }) =>
     Promise.resolve({
       success: true,
       message: 'Success',
-      data:
-        path === '/cloud/plans'
-          ? {
-              trial_days: 3,
-              regions: {
-                us: {
-                  name: 'United States',
-                  currency: 'USD',
-                  prices: {
-                    monthly: { price: 8.99, price_formatted: '$8.99' },
-                    yearly: { price: 86.28, price_formatted: '$86.28' }
-                  }
-                }
-              }
-            }
-          : current
+      data: options?.method
+        ? { url: 'https://example.invalid/pay' }
+        : path === '/cloud/plans'
+          ? pricing
+          : status
     })
   );
+}
+
+function render() {
+  return mount(BillingSettings, { attachTo: document.body });
+}
+
+const text = () => document.body.textContent ?? '';
+const button = (label: string) =>
+  ([...document.body.querySelectorAll('button')] as HTMLElement[]).find(
+    (el) => el.textContent?.trim() === label
+  );
+
+beforeEach(() => {
+  request.mockReset();
+  navigate.mockReset();
+  document.body.innerHTML = '';
+  vi.stubGlobal('useRoute', () => ({
+    path: '/settings',
+    query: { tab: 'billing', checkout: 'success' }
+  }));
+  vi.stubGlobal('useRouter', () => ({ hasRoute: () => true }));
+  respond(current);
 });
-describe('billing purchase return', () => {
+
+describe('plan and billing tab', () => {
   it('keeps free access until the server confirms payment and shows the price', async () => {
-    const page = render();
+    const wrapper = render();
     await flushPromises();
-    expect(page.text()).toContain('Free plan');
-    expect(page.text()).toContain('Payment confirmation is pending');
-    expect(page.text()).toContain('$86.28');
-    expect(page.text()).not.toContain('Paid access active');
-    expect(page.text()).not.toContain('Manage billing');
+    expect(text()).toContain('Free plan');
+    expect(text()).toContain('Payment confirmation is pending');
+    expect(text()).toContain('$86.28');
+    expect(text()).not.toContain('Paid plan');
+    expect(button('Manage billing')).toBeUndefined();
+    wrapper.unmount();
   });
+
   it('starts checkout with yearly billing and allows switching to monthly', async () => {
-    const page = render();
+    const wrapper = render();
     await flushPromises();
-    const period = page.findAll('select')[1];
-    expect(period.element.value).toBe('yearly');
-    await page
-      .findAll('button')
-      .find((button) => button.text() === 'Upgrade')!
-      .trigger('click');
+    button('Upgrade')!.click();
+    await flushPromises();
     expect(request).toHaveBeenCalledWith('/cloud/billing/checkout', {
       method: 'POST',
       body: { region: 'us', plan: 'yearly' }
     });
-    await period.setValue('monthly');
-    expect(page.text()).toContain('$8.99');
-    await page
-      .findAll('button')
-      .find((button) => button.text() === 'Upgrade')!
-      .trigger('click');
+    (document.body.querySelector('#billing-period') as HTMLElement).click();
+    await flushPromises();
+    (
+      [...document.body.querySelectorAll('[role="option"]')].find(
+        (option) => option.textContent?.trim() === 'Monthly'
+      ) as HTMLElement
+    ).click();
+    await flushPromises();
+    expect(text()).toContain('$8.99');
+    button('Upgrade')!.click();
+    await flushPromises();
     expect(request).toHaveBeenCalledWith('/cloud/billing/checkout', {
       method: 'POST',
       body: { region: 'us', plan: 'monthly' }
     });
+    expect(navigate).toHaveBeenCalledWith('https://example.invalid/pay', { external: true });
+    wrapper.unmount();
   });
+
   it('shows only server-confirmed access and monthly usage', async () => {
-    request.mockImplementation((path: string) =>
-      Promise.resolve({
-        success: true,
-        message: 'Success',
-        data:
-          path === '/cloud/plans'
-            ? { trial_days: 3, regions: {} }
-            : {
-                ...current,
-                paid_access: true,
-                has_billing_account: true,
-                status: 'active',
-                ai_usage: { ...current.ai_usage, used: 420, allowance: 100000 }
-              }
-      })
+    respond(
+      {
+        ...current,
+        paid_access: true,
+        has_billing_account: true,
+        status: 'active',
+        ai_usage: { ...current.ai_usage, used: 420, allowance: 100000 }
+      },
+      { trial_days: 3, regions: {} }
     );
-    const page = render();
+    const wrapper = render();
     await flushPromises();
-    expect(page.text()).toContain('Paid access active');
-    expect(page.text()).toContain('420 / 100,000');
-    expect(page.text()).toContain('Manage billing');
-    expect(page.text()).not.toContain('Payment confirmation is pending');
+    expect(text()).toContain('Paid plan');
+    expect(text()).toContain('420 / 100,000');
+    expect(text()).toContain('Payment confirmed. Paid access is active.');
+    expect(button('Manage billing')).toBeDefined();
+    expect(text()).not.toContain('Payment confirmation is pending');
+    wrapper.unmount();
   });
+
   it('hides bank management when the bank layer is absent', async () => {
     vi.stubGlobal('useRouter', () => ({ hasRoute: () => false }));
-    request.mockImplementation((path: string) =>
-      Promise.resolve({
-        success: true,
-        data:
-          path === '/cloud/plans'
-            ? { regions: {} }
-            : { ...current, paid_access: true, has_billing_account: true }
-      })
-    );
-    const page = render();
+    respond({ ...current, paid_access: true, has_billing_account: true }, { regions: {} });
+    const wrapper = render();
     await flushPromises();
-    expect(page.text()).toContain('Manage billing');
-    expect(page.text()).not.toContain('Manage banks');
+    expect(button('Manage billing')).toBeDefined();
+    expect(button('Manage banks')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('clears the checkout result from the address when dismissed', async () => {
+    const wrapper = render();
+    await flushPromises();
+    (document.body.querySelector('[aria-label="Dismiss"]') as HTMLElement).click();
+    await flushPromises();
+    expect(navigate).toHaveBeenCalledWith(
+      { path: '/settings', query: { tab: 'billing' } },
+      { replace: true }
+    );
+    expect(text()).not.toContain('Payment confirmation is pending');
+    wrapper.unmount();
   });
 });

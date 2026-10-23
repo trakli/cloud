@@ -37,8 +37,14 @@ class CloudIntegration implements IntegrationUi
     public function ui(): array
     {
         return [
-            'slots' => ['settings.integrations', 'sidebar.nav'],
+            'slots' => ['settings.integrations', 'settings.tabs'],
             'card' => ['title' => 'Premium', 'cta' => 'Manage plan', 'href' => '/billing'],
+            'tab' => [
+                'key' => 'billing',
+                'title' => 'Plan and billing',
+                'component' => 'cloud.settings',
+                'order' => 10,
+            ],
             'show_when_unconfigured' => true,
         ];
     }
