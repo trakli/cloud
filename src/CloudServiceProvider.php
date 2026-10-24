@@ -5,8 +5,11 @@ namespace Trakli\Cloud;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Trakli\Cloud\Console\SyncPlansCommand;
+use Trakli\Cloud\Engagement\BillingMetricProvider;
 use Trakli\Cloud\Support\FreePlanFallbackSource;
 use Trakli\Cloud\Support\TokenMeterUsage;
+use Whilesmart\Admin\Offers\FreePasses;
+use Whilesmart\Admin\Offers\StripePromotionCodes;
 use Whilesmart\Entitlements\Contracts\Entitlements;
 use Whilesmart\Entitlements\Contracts\PlanSource;
 use Whilesmart\Entitlements\Contracts\UsageMeter;
@@ -21,7 +24,7 @@ class CloudServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/cloudplans.php', 'cloudplans');
+        $this->mergeConfigFrom(__DIR__ . '/../config/cloudplans.php', 'cloudplans');
     }
 
     /**
@@ -33,6 +36,14 @@ class CloudServiceProvider extends ServiceProvider
         $this->registerRoutes();
         $this->publishConfig();
         $this->enforcePlans();
+        config(['engagement.providers' => array_values(array_unique([
+            BillingMetricProvider::class,
+            ...(array) config('engagement.providers', []),
+        ]))]);
+        config(['admin.offer_providers' => array_values(array_unique(array_merge(
+            (array) config('admin.offer_providers', []),
+            [StripePromotionCodes::class, FreePasses::class],
+        )))]);
         app(\Illuminate\Routing\Router::class)->aliasMiddleware('feature', \App\Http\Middleware\RequireFeature::class);
 
         if (config('entitlements-cashier.trial_days') === null) {
