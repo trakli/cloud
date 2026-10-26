@@ -21,14 +21,14 @@ class WorkspaceCheckoutTransport implements \Stripe\HttpClient\ClientInterface
     public function request($method, $absUrl, $headers, $params, $hasFile, $apiMode = 'v1', $maxNetworkRetries = null)
     {
         $fixtures = base_path('packages/entitlements-cashier/tests/Fixtures/');
-        if ($method === 'get' && str_contains($absUrl, '/customers/')) {
-            return [file_get_contents($fixtures.'stripe-customer.json'), 200, []];
-        }
         if ($method === 'post' && str_ends_with($absUrl, '/expire')) {
             return [file_get_contents($fixtures.'stripe-checkout-expired.json'), 200, []];
         }
         if ($method === 'get' && str_contains($absUrl, '/checkout/sessions/')) {
-            return [file_get_contents($fixtures.'stripe-checkout-open.json'), 200, []];
+            $session = json_decode(file_get_contents($fixtures.'stripe-checkout-open.json'), true);
+            $session['metadata'] = $this->sessions[array_key_last($this->sessions)]['parameters']['metadata'];
+
+            return [json_encode($session), 200, []];
         }
         if ($method === 'post' && str_ends_with($absUrl, '/checkout/sessions')) {
             $this->sessions[] = ['parameters' => $params, 'headers' => $headers];
@@ -37,7 +37,10 @@ class WorkspaceCheckoutTransport implements \Stripe\HttpClient\ClientInterface
                 throw new \RuntimeException('Interrupted checkout response.');
             }
 
-            return [file_get_contents($fixtures.'stripe-checkout-open.json'), 200, []];
+            $session = json_decode(file_get_contents($fixtures.'stripe-checkout-open.json'), true);
+            $session['metadata'] = $this->sessions[array_key_last($this->sessions)]['parameters']['metadata'];
+
+            return [json_encode($session), 200, []];
         }
 
         throw new \RuntimeException('Unexpected Stripe request in workspace checkout test.');
@@ -156,19 +159,19 @@ class WorkspaceBillingTest extends TestCase
 
     public function test_checkout_reuses_its_price_and_recovers_without_granting_access_early(): void
     {
-        config(['cashier.secret' => 'test-stripe-key', 'entitlements-cashier.trial_days' => 7, 'cache.default' => 'array']);
+        config(['cashier.secret' => 'test-stripe-key', 'entitlements-cashier.trial_days' => 7, 'cache.default' => 'array',
+            'workspace-billing.base_amount_cents' => 899, 'workspace-billing.additional_member_amount_cents' => 0]);
         $transport = new WorkspaceCheckoutTransport();
         \Stripe\ApiRequestor::setHttpClient($transport);
         try {
             $workspace = $this->draft();
             $quote = $this->getJson('/api/v1/cloud/workspace-pricing?members=3')->json('data');
-            $fixture = json_decode(file_get_contents(base_path('packages/entitlements-cashier/tests/Fixtures/stripe-subscription-created.json')), true)['payload']['data']['object'];
+            $fixture = json_decode(file_get_contents(base_path('packages/entitlements-cashier/tests/Fixtures/stripe-checkout-open.json')), true);
             Plan::create(['key' => 'workspace-'.$quote['quote_id'], 'name' => 'Group budgeting',
-                'provider_price_id' => $fixture['items']['data'][0]['price']['id'],
+                'provider_price_id' => $fixture['line_items']['data'][0]['price']['id'],
                 'features' => ['shared_workspaces' => true], 'limits' => ['workspace_members' => 3],
-                'metadata' => ['workspace_quote' => $quote, 'price' => ['amount_cents' => 1700, 'currency' => 'usd', 'interval' => 'month'], 'price_signature' => '1700:usd:month']]);
-            $customer = json_decode(file_get_contents(base_path('packages/entitlements-cashier/tests/Fixtures/stripe-customer.json')), true);
-            \Whilesmart\EntitlementsCashier\Models\BillingProfile::forOwner($workspace)->update(['stripe_id' => $customer['id']]);
+                'metadata' => ['workspace_quote' => $quote, 'price' => ['amount_cents' => 899, 'currency' => 'usd', 'interval' => 'month'], 'price_signature' => '899:usd:month']]);
+            \Whilesmart\EntitlementsCashier\Models\BillingProfile::forOwner($workspace)->update(['stripe_id' => $fixture['customer']]);
             $payload = ['members' => 3, 'quote_id' => $quote['quote_id'], 'confirmed' => true];
             $transport->interrupt = true;
             $this->postJson($this->billing($workspace).'/checkout', $payload)->assertStatus(500);
@@ -178,7 +181,7 @@ class WorkspaceBillingTest extends TestCase
             $this->assertEquals($transport->sessions[0]['parameters'], $transport->sessions[1]['parameters']);
             $this->assertSame($transport->sessions[0]['headers'], $transport->sessions[1]['headers']);
             $parameters = $transport->sessions[0]['parameters'];
-            $this->assertSame($fixture['items']['data'][0]['price']['id'], $parameters['line_items'][0]['price']);
+            $this->assertSame($fixture['line_items']['data'][0]['price']['id'], $parameters['line_items'][0]['price']);
             $this->assertSame(1, $parameters['line_items'][0]['quantity']);
             $this->assertSame($workspace->getMorphClass(), $parameters['metadata']['owner_type']);
             $this->assertSame((string) $workspace->id, $parameters['metadata']['owner_id']);
@@ -205,7 +208,7 @@ class WorkspaceBillingTest extends TestCase
 
     private function activate(Workspace $workspace, int $members): Subscription
     {
-        $fixture = json_decode(file_get_contents(base_path('packages/entitlements-cashier/tests/Fixtures/stripe-subscription-created.json')), true)['payload']['data']['object'];
+        $fixture = json_decode(file_get_contents(base_path('packages/entitlements-cashier/tests/Fixtures/stripe-subscription.json')), true);
         $plan = Plan::create(['provider_price_id' => $fixture['items']['data'][0]['price']['id'], 'key' => 'test-workspace-'.$workspace->id, 'name' => 'Group budgeting',
             'features' => ['shared_workspaces' => true, 'plaid' => true, 'bank_connections' => true],
             'limits' => ['workspace_members' => $members], 'meters' => ['ai_tokens' => 0]]);

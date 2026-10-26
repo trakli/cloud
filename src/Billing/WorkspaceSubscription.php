@@ -16,8 +16,7 @@ class WorkspaceSubscription
         $subscription = $profile?->subscription('default');
 
         return (! $subscription || $subscription->ended())
-            && ! \Whilesmart\EntitlementsCashier\Models\CheckoutAttempt::forOwner($workspace)
-                ->whereIn('state', ['pending', 'ready'])->where('expires_at', '>', now())->exists();
+            && ! ($profile?->checkout_expires_at?->isFuture() && filled($profile->checkout_parameters));
     }
 
     public function capacity(Workspace $workspace): int

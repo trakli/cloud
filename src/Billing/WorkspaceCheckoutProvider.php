@@ -2,12 +2,11 @@
 
 namespace Trakli\Cloud\Billing;
 
-use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Model;
-use Whilesmart\EntitlementsCashier\RecoverableCashierBillingProvider;
+use Whilesmart\EntitlementsCashier\CashierBillingProvider;
 use Whilesmart\Entitlements\Models\Plan;
 
-class WorkspaceCheckoutProvider extends RecoverableCashierBillingProvider
+class WorkspaceCheckoutProvider extends CashierBillingProvider
 {
     public function createCheckout(Model $owner, Plan $plan): string
     {
@@ -26,10 +25,5 @@ class WorkspaceCheckoutProvider extends RecoverableCashierBillingProvider
     protected function trialDays(): ?int
     {
         return null;
-    }
-
-    protected function customerOptions(Model $owner): array
-    {
-        return parent::customerOptions($owner instanceof Workspace ? $owner->owner : $owner);
     }
 }

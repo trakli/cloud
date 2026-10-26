@@ -40,8 +40,7 @@ class WorkspaceBillingController extends ApiController
             'can_manage_billing' => $workspace->owner_id === $request->user()->id && $workspace->owner_type === $request->user()->getMorphClass(),
             'has_billing_account' => filled($profile?->stripe_id),
             'has_subscription' => $profile?->subscription('default') && ! $profile->subscription('default')->ended(),
-            'pending_checkout' => \Whilesmart\EntitlementsCashier\Models\CheckoutAttempt::forOwner($workspace)
-                ->whereIn('state', ['pending', 'ready'])->where('expires_at', '>', now())->exists(),
+            'pending_checkout' => (bool) ($profile?->checkout_expires_at?->isFuture() && filled($profile->checkout_parameters)),
         ]);
     }
 
