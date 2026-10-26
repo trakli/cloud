@@ -63,7 +63,12 @@
             >
               {{ t('Manage banks') }}
             </DsButton>
-            <DsButton variant="secondary" :loading="busy === 'portal'" @click="portal">
+            <DsButton
+              v-if="status.has_billing_account"
+              variant="secondary"
+              :loading="busy === 'portal'"
+              @click="portal"
+            >
               <template #icon><IconExternal /></template>
               {{ t('Manage billing') }}
             </DsButton>
@@ -77,7 +82,7 @@
           </div>
         </dl>
 
-        <div v-if="status.paid_access" class="billing__usage">
+        <div v-if="status.ai_usage.allowance > 0" class="billing__usage">
           <div class="billing__usage-head">
             <strong>{{ t('Monthly model usage') }}</strong>
             <span>

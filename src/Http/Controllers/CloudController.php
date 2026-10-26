@@ -314,13 +314,15 @@ class CloudController extends ApiController
             ->where('owner_id', $owner->getKey())->latest('id')->first();
         $used = app(\Trakli\Cloud\Support\TokenMeterUsage::class)->used($owner);
         $paid = $entitlements->allows($owner, 'bank_connections');
+        $ai = $entitlements->allows($owner, 'ai');
+        $workspaceAccess = $paid && ! app(\Whilesmart\Entitlements\Support\PlanEntitlements::class)->allows($owner, 'bank_connections');
         $start = now('UTC')->startOfMonth();
 
         return $this->success([
             'has_billing_account' => app(config('entitlements-cashier.billing_profile_model', \Whilesmart\EntitlementsCashier\Models\BillingProfile::class))->newQuery()
                 ->where('owner_type', $owner->getMorphClass())->where('owner_id', $owner->getKey())->whereNotNull('stripe_id')->exists(),
             'paid_access' => $paid,
-            'status' => $subscription?->status?->value ?? 'free',
+            'status' => $workspaceAccess ? 'group' : ($subscription?->status?->value ?? 'free'),
             'paid_through' => $subscription?->current_period_end?->toIso8601String(),
             'limits' => [
                 'wallets' => $entitlements->limit($owner, 'max_wallets'),
@@ -329,8 +331,8 @@ class CloudController extends ApiController
             ],
             'ai_usage' => [
                 'used' => $used,
-                'allowance' => $paid ? 100000 : 0,
-                'remaining' => $paid ? max(0, 100000 - $used) : 0,
+                'allowance' => $ai ? 100000 : 0,
+                'remaining' => $ai ? max(0, 100000 - $used) : 0,
                 'period_start' => $start->toIso8601String(),
                 'period_end' => $start->copy()->addMonth()->toIso8601String(),
             ],

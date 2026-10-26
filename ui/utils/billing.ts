@@ -4,6 +4,7 @@ export type PlanTone = 'success' | 'warning' | 'primary' | 'default';
 
 const statuses: Record<string, { tone: PlanTone; label: string }> = {
   active: { tone: 'success', label: 'Active' },
+  group: { tone: 'primary', label: 'Group subscription' },
   comped: { tone: 'success', label: 'Complimentary' },
   trialing: { tone: 'primary', label: 'Trial' },
   past_due: { tone: 'warning', label: 'Payment due' },

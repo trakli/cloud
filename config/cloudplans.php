@@ -1,7 +1,5 @@
 <?php
 
-$sharedWorkspacePlans = array_filter(array_map('trim', explode(',', env('CLOUD_SHARED_WORKSPACE_PLANS', ''))));
-
 return [
     'overview' => [
         'benefits' => [
@@ -72,7 +70,7 @@ return [
             'id' => 'free',
             'name' => 'Free',
             'interval' => 'lifetime',
-            'feature_keys' => in_array('free', $sharedWorkspacePlans, true) ? ['shared_workspaces'] : [],
+            'feature_keys' => [],
             'limits' => [
                 'max_wallets' => 3,
                 'max_categories' => 5,
@@ -94,7 +92,7 @@ return [
             'id' => 'monthly',
             'name' => 'Monthly',
             'interval' => 'month',
-            'feature_keys' => array_merge(['plaid', 'bank_connections', 'ai'], in_array('monthly', $sharedWorkspacePlans, true) ? ['shared_workspaces'] : []),
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
@@ -114,7 +112,7 @@ return [
             'id' => 'yearly',
             'name' => 'Yearly',
             'interval' => 'year',
-            'feature_keys' => array_merge(['plaid', 'bank_connections', 'ai'], in_array('yearly', $sharedWorkspacePlans, true) ? ['shared_workspaces'] : []),
+            'feature_keys' => ['plaid', 'bank_connections', 'ai'],
             'limits' => [
                 'max_wallets' => null,
                 'max_categories' => null,
