@@ -31,3 +31,29 @@ export function usageShare(used: number, allowance: number): number {
   if (allowance <= 0) return 0;
   return Math.min(100, Math.round((used / allowance) * 100));
 }
+
+export interface CheckoutNotice {
+  tone: 'success' | 'info';
+  message: string;
+  refresh?: boolean;
+}
+
+export function checkoutNotice(returned: unknown, active: boolean): CheckoutNotice | null {
+  if (returned === 'success') {
+    return active
+      ? { tone: 'success', message: 'Payment confirmed. Paid access is active.' }
+      : {
+          tone: 'info',
+          refresh: true,
+          message: 'Payment confirmation is pending. Refresh in a moment to see it.'
+        };
+  }
+  if (returned === 'cancelled') {
+    return { tone: 'info', message: 'Checkout cancelled. Nothing has changed.' };
+  }
+  return null;
+}
+
+export function formatCents(amount: number, currency: string, locale?: string): string {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount / 100);
+}
