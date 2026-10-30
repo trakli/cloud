@@ -13,7 +13,6 @@ use Whilesmart\Admin\Offers\StripePromotionCodes;
 use Whilesmart\Entitlements\Contracts\Entitlements;
 use Whilesmart\Entitlements\Contracts\PlanSource;
 use Whilesmart\Entitlements\Contracts\UsageMeter;
-use Whilesmart\Entitlements\Support\PlanEntitlements;
 
 class CloudServiceProvider extends ServiceProvider
 {
@@ -25,6 +24,8 @@ class CloudServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/cloudplans.php', 'cloudplans');
+        $this->mergeConfigFrom(__DIR__ . '/../config/workspace-billing.php', 'workspace-billing');
+        $this->app->bind(\Trakli\Cloud\Contracts\WorkspacePricing::class, fn ($app) => $app->make(config('workspace-billing.pricing')));
     }
 
     /**
@@ -74,7 +75,9 @@ class CloudServiceProvider extends ServiceProvider
 
         $this->app->singleton(PlanSource::class, FreePlanFallbackSource::class);
         $this->app->singleton(UsageMeter::class, TokenMeterUsage::class);
-        $this->app->singleton(Entitlements::class, PlanEntitlements::class);
+        $this->app->singleton(Entitlements::class, \Trakli\Cloud\Billing\WorkspaceMemberEntitlements::class);
+        \App\Models\Workspace::observe(\Trakli\Cloud\Billing\WorkspaceDeletionGuard::class);
+        $this->app->bind(\Whilesmart\Workspaces\Contracts\InvitationGuard::class, \Trakli\Cloud\Billing\WorkspaceInvitationGuard::class);
     }
 
     /**
