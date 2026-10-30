@@ -14,7 +14,7 @@ class WorkspaceCheckoutProvider extends CashierBillingProvider
             'entitlements-cashier.cancel_url' => config('entitlements-cashier.cancel_url')];
         $url = rtrim(config('workspace-billing.return_url'), '/').'/workspaces/'.$owner->slug;
         config(['entitlements-cashier.success_url' => $url.'?checkout=success',
-            'entitlements-cashier.cancel_url' => $url.'?checkout=cancel']);
+            'entitlements-cashier.cancel_url' => $url.'?checkout=cancelled']);
         try {
             return parent::createCheckout($owner, $plan);
         } finally {

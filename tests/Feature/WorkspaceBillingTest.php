@@ -187,6 +187,7 @@ class WorkspaceBillingTest extends TestCase
             $this->assertSame((string) $workspace->id, $parameters['metadata']['owner_id']);
             $this->assertArrayNotHasKey('trial_period_days', $parameters['subscription_data']);
             $this->assertStringContainsString('/workspaces/'.$workspace->slug.'?checkout=success', $parameters['success_url']);
+            $this->assertStringContainsString('/workspaces/'.$workspace->slug.'?checkout=cancelled', $parameters['cancel_url']);
             $this->getJson($this->billing($workspace))->assertJsonPath('data.active', false)->assertJsonPath('data.pending_checkout', true);
             $this->deleteJson('/api/v1/workspaces/'.$workspace->slug)->assertConflict()
             ->assertJsonPath('message', 'End the workspace subscription and cancel any pending checkout before deleting this space.');

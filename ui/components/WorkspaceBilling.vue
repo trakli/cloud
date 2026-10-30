@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { DsButton, DsCard, DsChip, DsInput, DsModal, DsStatePanel } from '@whilesmart/design';
 import type { Workspace } from '~/types/workspace';
+import { checkoutNotice } from '../utils/billing';
 import { extractApiErrors } from '~/utils/apiErrors';
 
 interface Quote {
@@ -34,11 +35,7 @@ const status = ref<Status | null>(null);
 const quote = ref<Quote | null>(null);
 const members = ref('');
 const error = ref('');
-const notice = ref(
-  route.query.checkout === 'success'
-    ? 'Checkout completed. Refresh the subscription if payment is still being confirmed.'
-    : ''
-);
+const notice = ref(checkoutNotice(route.query.checkout, false)?.message ?? '');
 const loading = ref(true);
 const quoting = ref(false);
 const busy = ref(false);
@@ -60,6 +57,7 @@ async function load() {
   try {
     const response = await api<{ data: Status }>(base.value);
     status.value = response.data;
+    notice.value = checkoutNotice(route.query.checkout, response.data.active)?.message ?? '';
     const initial = (await api<{ data: Quote }>('/cloud/workspace-pricing')).data;
     members.value = String(
       Math.max(initial.included_members, response.data.capacity, response.data.member_count)

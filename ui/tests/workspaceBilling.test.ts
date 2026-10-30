@@ -64,6 +64,14 @@ afterEach(() => {
 });
 
 describe('group subscription', () => {
+  it('confirms a cancelled checkout without granting access', async () => {
+    vi.stubGlobal('useRoute', () => ({ query: { checkout: 'cancelled' } }));
+    wrapper = mount(WorkspaceBilling, { props: { workspace }, attachTo: document.body });
+    await flushPromises();
+    expect(wrapper.text()).toContain('Checkout cancelled. Nothing has changed.');
+    expect(wrapper.text()).not.toContain('Paid access is active.');
+  });
+
   it('shows the server price and requires confirmation before checkout', async () => {
     wrapper = mount(WorkspaceBilling, {
       props: { workspace },
