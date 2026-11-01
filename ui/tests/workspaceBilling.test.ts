@@ -5,6 +5,7 @@ import WorkspaceBilling from '../components/WorkspaceBilling.vue';
 const request = vi.fn();
 const navigate = vi.fn();
 let wrapper: VueWrapper | undefined;
+vi.mock('~/composables/useApi', () => ({ useApi: () => request }));
 const workspace = {
   id: 1,
   slug: 'our-space',
@@ -63,10 +64,13 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('group subscription', () => {
+describe('shared space plan', () => {
   it('confirms a cancelled checkout without granting access', async () => {
     vi.stubGlobal('useRoute', () => ({ query: { checkout: 'cancelled' } }));
-    wrapper = mount(WorkspaceBilling, { props: { workspace }, attachTo: document.body });
+    wrapper = mount(WorkspaceBilling, {
+      props: { workspace },
+      attachTo: document.body
+    });
     await flushPromises();
     expect(wrapper.text()).toContain('Checkout cancelled. Nothing has changed.');
     expect(wrapper.text()).not.toContain('Paid access is active.');
@@ -78,12 +82,12 @@ describe('group subscription', () => {
       attachTo: document.body
     });
     await flushPromises();
-    expect(wrapper.text()).toContain('$12.00 per month for 2 people');
-    expect(wrapper.text()).toContain('Each additional person is $5.00');
+    expect(wrapper.text()).toContain('$12.00 per month');
+    expect(wrapper.text()).toContain('then $5.00 per extra person');
     button('Continue to checkout').click();
     await flushPromises();
     expect(request.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0);
-    expect(document.body.textContent).toContain('Confirm group subscription');
+    expect(document.body.textContent).toContain('$12.00 per month for 2 people, including you.');
     const confirm = [...document.body.querySelectorAll('button')]
       .filter((item) => item.textContent?.trim() === 'Continue to checkout')
       .at(-1)!;
@@ -111,5 +115,26 @@ describe('group subscription', () => {
     await flushPromises();
     expect(wrapper.find('input').exists()).toBe(false);
     expect(button('Continue to checkout')).toBeUndefined();
+    expect(wrapper.text()).toContain('Only the owner can change the plan for this space.');
+  });
+
+  it('shows a failed portal request instead of leaving the page', async () => {
+    request.mockImplementation((path: string, options?: { method?: string }) =>
+      options?.method === 'POST'
+        ? Promise.reject(new Error('Billing is unavailable'))
+        : Promise.resolve({
+            data:
+              path === '/cloud/workspace-pricing' ? quote : { ...status, has_billing_account: true }
+          })
+    );
+    wrapper = mount(WorkspaceBilling, {
+      props: { workspace },
+      attachTo: document.body
+    });
+    await flushPromises();
+    button('Manage billing').click();
+    await flushPromises();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true);
   });
 });

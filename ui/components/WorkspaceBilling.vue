@@ -1,9 +1,156 @@
+<template>
+  <div class="space-billing">
+    <BillingNotice
+      v-if="notice"
+      v-bind="notice"
+      :loading="loading"
+      @refresh="refresh"
+      @dismiss="dismiss"
+    />
+
+    <DsStatePanel
+      v-if="loading && !status"
+      state="loading"
+      :title="t('Loading the space subscription')"
+    />
+
+    <DsStatePanel
+      v-else-if="loadError && !status"
+      state="error"
+      :title="t('Could not load the space subscription')"
+      :description="loadError"
+      :action-label="t('Try again')"
+      @action="load"
+    />
+
+    <DsCard v-else-if="status" padding="md" class="space-billing__card">
+      <div class="space-billing__head">
+        <h3>{{ t('Shared space plan') }}</h3>
+        <DsChip size="sm" :variant="status.active ? 'success' : 'warning'">
+          {{ status.active ? t('Active') : t('Not active') }}
+        </DsChip>
+      </div>
+      <p class="space-billing__muted">
+        {{
+          status.active
+            ? t('{count} of {capacity} places used, including the owner.', {
+                count: status.member_count,
+                capacity: status.capacity
+              })
+            : t(
+                'Activate this space to budget together. Bank connections are included for everyone.'
+              )
+        }}
+      </p>
+      <p v-if="status.quote" class="space-billing__muted">
+        {{
+          t('Current plan: {price} per month.', {
+            price: money(status.quote.amount_cents, status.quote.currency)
+          })
+        }}
+      </p>
+
+      <template v-if="status.can_manage_billing">
+        <div class="space-billing__checkout">
+          <DsInput
+            v-model="members"
+            :label="t('People, including you')"
+            type="number"
+            :disabled="!!busy"
+          />
+          <div class="space-billing__price" aria-live="polite">
+            <strong v-if="quote">
+              {{
+                t('{price} per month', {
+                  price: money(quote.amount_cents, quote.currency)
+                })
+              }}
+            </strong>
+            <span v-if="quote" class="space-billing__muted">
+              {{
+                t('{base} covers {included} people, then {extra} per extra person.', {
+                  base: money(quote.base_amount_cents, quote.currency),
+                  included: quote.included_members,
+                  extra: money(quote.additional_member_amount_cents, quote.currency)
+                })
+              }}
+            </span>
+          </div>
+        </div>
+        <p class="space-billing__muted">
+          {{ t('Invitations are free. People join once there is a place for them.') }}
+        </p>
+        <div class="space-billing__actions">
+          <DsButton :disabled="!canReview" @click="confirming = true">
+            {{ status.has_subscription ? t('Review change') : t('Continue to checkout') }}
+          </DsButton>
+          <DsButton
+            v-if="status.pending_checkout"
+            variant="secondary"
+            :loading="busy === 'cancel'"
+            :disabled="!!busy"
+            @click="cancelCheckout"
+          >
+            {{ t('Cancel pending checkout') }}
+          </DsButton>
+          <DsButton
+            v-if="status.has_billing_account"
+            variant="secondary"
+            :loading="busy === 'portal'"
+            :disabled="!!busy"
+            @click="portal"
+          >
+            <template #icon><IconExternal /></template>
+            {{ t('Manage billing') }}
+          </DsButton>
+        </div>
+      </template>
+      <p v-else class="space-billing__muted">
+        {{ t('Only the owner can change the plan for this space.') }}
+      </p>
+    </DsCard>
+
+    <DsModal v-model="confirming" :title="t('Confirm the space plan')">
+      <template v-if="quote">
+        <p>
+          {{
+            t('{price} per month for {count} people, including you.', {
+              price: money(quote.amount_cents, quote.currency),
+              count: quote.members
+            })
+          }}
+        </p>
+        <p class="space-billing__muted">
+          {{
+            status?.has_subscription
+              ? t(
+                  'The change applies once payment is confirmed. Any prorated charge or credit applies straight away.'
+                )
+              : t('The space becomes active once checkout is confirmed.')
+          }}
+        </p>
+        <div class="space-billing__actions">
+          <DsButton variant="ghost" :disabled="!!busy" @click="confirming = false">
+            {{ t('Cancel') }}
+          </DsButton>
+          <DsButton :loading="busy === 'checkout'" @click="checkout">
+            {{ status?.has_subscription ? t('Confirm change') : t('Continue to checkout') }}
+          </DsButton>
+        </div>
+      </template>
+    </DsModal>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { DsButton, DsCard, DsChip, DsInput, DsModal, DsStatePanel } from '@whilesmart/design';
+import IconExternal from '~icons/solar/arrow-right-up-linear';
 import type { Workspace } from '~/types/workspace';
-import { checkoutNotice } from '../utils/billing';
 import { extractApiErrors } from '~/utils/apiErrors';
+import { checkoutNotice, formatCents } from '../utils/billing';
+import { useBillingRedirect } from '../composables/useBillingRedirect';
+import BillingNotice from './BillingNotice.vue';
 
 interface Quote {
   quote_id: string;
@@ -27,48 +174,72 @@ interface Status {
   has_subscription: boolean;
   pending_checkout: boolean;
 }
+
 const props = defineProps<{ workspace: Workspace }>();
 const emit = defineEmits<{ changed: [] }>();
+const { t, locale } = useI18n();
 const api = useApi();
 const route = useRoute();
+const { busy, error: actionError, go } = useBillingRedirect<'checkout' | 'cancel' | 'portal'>();
 const status = ref<Status | null>(null);
 const quote = ref<Quote | null>(null);
 const members = ref('');
-const error = ref('');
-const notice = ref(checkoutNotice(route.query.checkout, false)?.message ?? '');
+const loadError = ref<string | null>(null);
+const quoteError = ref<string | null>(null);
+const pending = ref(false);
+const dismissed = ref(false);
 const loading = ref(true);
 const quoting = ref(false);
-const busy = ref(false);
 const confirming = ref(false);
 const base = computed(() => `/cloud/workspaces/${props.workspace.slug}/billing`);
-const canSubmit = computed(
-  () => !!quote.value && !quoting.value && Number(members.value) === quote.value.members
+const canReview = computed(
+  () =>
+    !!quote.value &&
+    !quoting.value &&
+    !busy.value &&
+    Number(members.value) === quote.value.members &&
+    !(status.value?.active && status.value.capacity === quote.value.members)
 );
 let quoteRequest = 0;
-function money(amount: number, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency
-  }).format(amount / 100);
-}
+
+const money = (amount: number, currency: string) => formatCents(amount, currency, locale.value);
+
+const notice = computed(() => {
+  const failure = actionError.value ?? quoteError.value;
+  if (failure) return { tone: 'error' as const, message: failure };
+  if (pending.value) {
+    return {
+      tone: 'info' as const,
+      refresh: true,
+      message: t('Payment confirmation is pending. Refresh in a moment to see it.')
+    };
+  }
+  if (dismissed.value || !status.value) return null;
+  const returned = checkoutNotice(route.query.checkout, status.value.active);
+  return returned ? { ...returned, message: t(returned.message) } : null;
+});
+
 async function load() {
   loading.value = true;
-  error.value = '';
+  loadError.value = null;
   try {
-    const response = await api<{ data: Status }>(base.value);
-    status.value = response.data;
-    notice.value = checkoutNotice(route.query.checkout, response.data.active)?.message ?? '';
-    const initial = (await api<{ data: Quote }>('/cloud/workspace-pricing')).data;
+    const [current, pricing] = await Promise.all([
+      api<{ data: Status }>(base.value),
+      api<{ data: Quote }>('/cloud/workspace-pricing')
+    ]);
+    status.value = current.data;
+    if (current.data.active) pending.value = false;
     members.value = String(
-      Math.max(initial.included_members, response.data.capacity, response.data.member_count)
+      Math.max(pricing.data.included_members, current.data.capacity, current.data.member_count)
     );
     await getQuote();
   } catch (cause) {
-    error.value = extractApiErrors(cause);
+    loadError.value = extractApiErrors(cause);
   } finally {
     loading.value = false;
   }
 }
+
 async function getQuote() {
   const request = ++quoteRequest;
   quote.value = null;
@@ -80,187 +251,114 @@ async function getQuote() {
     });
     if (request === quoteRequest) {
       quote.value = response.data;
-      error.value = '';
+      quoteError.value = null;
     }
   } catch (cause) {
-    if (request === quoteRequest) error.value = extractApiErrors(cause);
+    if (request === quoteRequest) quoteError.value = extractApiErrors(cause);
   } finally {
     if (request === quoteRequest) quoting.value = false;
   }
 }
+
 async function refresh() {
   await load();
   emit('changed');
 }
+
 async function checkout() {
-  if (!canSubmit.value || !quote.value) return;
-  busy.value = true;
-  error.value = '';
-  try {
-    const response = await api<{ data: { url?: string; pending?: boolean } }>(
-      `${base.value}/checkout`,
-      {
-        method: 'POST',
-        body: {
-          members: quote.value.members,
-          quote_id: quote.value.quote_id,
-          confirmed: true
-        }
-      }
-    );
-    confirming.value = false;
-    if (response.data.url) {
-      await navigateTo(response.data.url, { external: true });
-    } else {
-      notice.value = 'Your payment is being confirmed. Refresh to check your member allowance.';
-      await refresh();
+  if (!canReview.value || !quote.value) return;
+  const result = await go<{ url?: string; pending?: boolean }>(
+    'checkout',
+    `${base.value}/checkout`,
+    {
+      members: quote.value.members,
+      quote_id: quote.value.quote_id,
+      confirmed: true
     }
-  } catch (cause) {
-    error.value = extractApiErrors(cause);
-    confirming.value = false;
-  } finally {
-    busy.value = false;
+  );
+  confirming.value = false;
+  if (result && !result.url) {
+    pending.value = true;
+    await refresh();
   }
 }
+
 async function cancelCheckout() {
-  busy.value = true;
-  error.value = '';
-  try {
-    await api(`${base.value}/cancel-checkout`, { method: 'POST' });
-    await load();
-  } catch (cause) {
-    error.value = extractApiErrors(cause);
-  } finally {
-    busy.value = false;
-  }
+  if (await go('cancel', `${base.value}/cancel-checkout`)) await load();
 }
-async function portal() {
-  busy.value = true;
-  error.value = '';
-  try {
-    const response = await api<{ data: { url: string } }>(`${base.value}/portal`, {
-      method: 'POST'
-    });
-    await navigateTo(response.data.url, { external: true });
-  } catch (cause) {
-    error.value = extractApiErrors(cause);
-  } finally {
-    busy.value = false;
+
+const portal = () => go('portal', `${base.value}/portal`);
+
+async function dismiss() {
+  if (actionError.value || quoteError.value) {
+    actionError.value = null;
+    quoteError.value = null;
+    return;
   }
+  pending.value = false;
+  dismissed.value = true;
+  const { checkout: _checkout, ...query } = route.query;
+  await navigateTo({ path: route.path, query }, { replace: true });
 }
+
 watch(members, getQuote);
 onMounted(load);
 </script>
 
-<template>
-  <DsCard class="workspace-billing">
-    <DsStatePanel v-if="loading && !status" state="loading" title="Loading group subscription" />
-    <template v-if="status">
-      <div class="workspace-billing__heading">
-        <h2>Group budgeting</h2>
-        <DsChip :variant="status.active ? 'success' : 'warning'">{{
-          status.active ? 'Active' : 'Subscription needed'
-        }}</DsChip>
-      </div>
-      <p v-if="status.active">
-        {{ status.member_count }} of {{ status.capacity }} members, including the owner.
-      </p>
-      <p v-else>
-        Activate this space to budget together. Bank connections are included for every member.
-      </p>
-      <p v-if="status.quote">
-        Current subscription:
-        {{ money(status.quote.amount_cents, status.quote.currency) }} per month.
-      </p>
-      <template v-if="status.can_manage_billing">
-        <p v-if="quote">
-          {{ money(quote.base_amount_cents, quote.currency) }} per month includes
-          {{ quote.included_members }} people. Each additional person is
-          {{ money(quote.additional_member_amount_cents, quote.currency) }} per month.
-        </p>
-        <DsInput
-          v-model="members"
-          label="Member allowance, including you"
-          type="number"
-          :disabled="busy"
-        />
-        <strong v-if="quote" aria-live="polite"
-          >{{ money(quote.amount_cents, quote.currency) }} per month for
-          {{ quote.members }} people</strong
-        >
-        <p>Pending invitations are free. People can join once there is room in your allowance.</p>
-        <div class="workspace-billing__actions">
-          <DsButton
-            :disabled="!canSubmit || busy || (status.active && status.capacity === quote?.members)"
-            @click="confirming = true"
-            >{{
-              status.has_subscription ? 'Review subscription' : 'Continue to checkout'
-            }}</DsButton
-          >
-          <DsButton
-            v-if="status.pending_checkout"
-            variant="secondary"
-            :loading="busy"
-            @click="cancelCheckout"
-            >Cancel pending checkout</DsButton
-          >
-          <DsButton
-            v-if="status.has_billing_account"
-            variant="secondary"
-            :loading="busy"
-            @click="portal"
-            >Manage payment and cancellation</DsButton
-          >
-        </div>
-      </template>
-      <DsButton variant="ghost" :loading="loading" @click="refresh">Refresh subscription</DsButton>
-    </template>
-    <p v-if="notice" role="status">{{ notice }}</p>
-    <p v-if="error" role="alert">{{ error }}</p>
-    <DsButton v-if="!status && !loading" variant="secondary" @click="load">Try again</DsButton>
-    <DsModal v-model="confirming" title="Confirm group subscription">
-      <template v-if="quote">
-        <p>
-          {{ money(quote.amount_cents, quote.currency) }} per month for {{ quote.members }} people,
-          including you. Bank connections are included.
-        </p>
-        <p v-if="status?.has_subscription">
-          Changes take effect after payment is confirmed. Any prorated charge or credit applies
-          immediately.
-        </p>
-        <p v-else>Your shared space becomes active after checkout is confirmed.</p>
-        <div class="workspace-billing__actions">
-          <DsButton variant="ghost" :disabled="busy" @click="confirming = false">Cancel</DsButton>
-          <DsButton :loading="busy" @click="checkout">{{
-            status?.has_subscription ? 'Confirm subscription' : 'Continue to checkout'
-          }}</DsButton>
-        </div>
-      </template>
-    </DsModal>
-  </DsCard>
-</template>
-
 <style scoped>
-.workspace-billing {
+.space-billing {
   display: grid;
-  gap: var(--ds-space-3);
+  gap: var(--ds-space-4);
+  max-width: 64rem;
 }
-.workspace-billing h2,
-.workspace-billing p {
+
+.space-billing__card {
+  display: grid;
+  gap: var(--ds-space-4);
+}
+
+.space-billing h3 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.space-billing p {
   margin: 0;
 }
-.workspace-billing p {
+
+.space-billing__muted {
   color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
 }
-.workspace-billing__heading,
-.workspace-billing__actions {
+
+.space-billing__head,
+.space-billing__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-3);
 }
-@media (max-width: 600px) {
-  .workspace-billing__actions {
+
+.space-billing__checkout {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--ds-space-4);
+}
+
+.space-billing__price {
+  display: grid;
+  gap: var(--ds-space-1);
+}
+
+@media (max-width: 640px) {
+  .space-billing__checkout {
+    grid-template-columns: 1fr;
+  }
+
+  .space-billing__actions {
     flex-direction: column;
     align-items: stretch;
   }

@@ -1,35 +1,12 @@
 <template>
   <div class="billing">
-    <section
+    <BillingNotice
       v-if="notice"
-      class="billing__notice"
-      :class="`billing__notice--${notice.tone}`"
-      :role="notice.tone === 'error' ? 'alert' : 'status'"
-    >
-      <component :is="toneIcons[notice.tone]" class="billing__notice-icon" aria-hidden="true" />
-      <p>{{ notice.message }}</p>
-      <div class="billing__notice-actions">
-        <DsButton
-          v-if="notice.refresh"
-          size="sm"
-          variant="secondary"
-          :loading="loading"
-          @click="load"
-        >
-          <template #icon><IconRefresh /></template>
-          {{ t('Refresh status') }}
-        </DsButton>
-        <DsIconButton
-          size="sm"
-          variant="ghost"
-          :title="t('Dismiss')"
-          :aria-label="t('Dismiss')"
-          @click="dismiss"
-        >
-          <IconClose />
-        </DsIconButton>
-      </div>
-    </section>
+      v-bind="notice"
+      :loading="loading"
+      @refresh="load"
+      @dismiss="dismiss"
+    />
 
     <DsStatePanel v-if="loading && !status" state="loading" :title="t('Loading your plan')" />
 
@@ -180,22 +157,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import {
-  DsButton,
-  DsCard,
-  DsChip,
-  DsDropdown,
-  DsIconButton,
-  DsStatePanel,
-  areaStyle
-} from '@whilesmart/design';
-import IconClose from '~icons/solar/close-circle-linear';
-import IconDanger from '~icons/solar/danger-circle-linear';
+import { DsButton, DsCard, DsChip, DsDropdown, DsStatePanel, areaStyle } from '@whilesmart/design';
 import IconExternal from '~icons/solar/arrow-right-up-linear';
-import IconInfo from '~icons/solar/info-circle-linear';
 import IconPremium from '~icons/solar/crown-star-bold-duotone';
-import IconRefresh from '~icons/solar/refresh-linear';
-import IconSuccess from '~icons/solar/check-circle-linear';
 import { useApi } from '~/composables/useApi';
 import { extractApiErrors } from '~/utils/apiErrors';
 import type { BillingStatus, CloudPlans, PremiumResponse } from '../types/api';
@@ -207,6 +171,7 @@ import {
   usageShare
 } from '../utils/billing';
 import { useBillingRedirect } from '../composables/useBillingRedirect';
+import BillingNotice from './BillingNotice.vue';
 
 const { t, locale } = useI18n();
 const lang = computed(() => locale.value);
@@ -222,8 +187,6 @@ const dismissed = ref(false);
 const { busy, error: actionError, go } = useBillingRedirect<'checkout' | 'portal'>();
 const region = ref('us');
 const period = ref('yearly');
-
-const toneIcons = { info: IconInfo, success: IconSuccess, error: IconDanger };
 
 const periods = computed(() => [
   { value: 'yearly', label: t('Yearly') },
@@ -314,46 +277,6 @@ onMounted(load);
   margin: 0;
   color: var(--ds-text-secondary);
   font-size: var(--ds-text-sm);
-}
-
-.billing__notice {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-3) var(--ds-space-4);
-  border-radius: var(--ds-radius-lg);
-}
-
-.billing__notice p {
-  margin: 0;
-  font-size: var(--ds-text-sm);
-}
-
-.billing__notice--info {
-  background: var(--ds-status-info-bg);
-  color: var(--ds-status-info-text);
-}
-
-.billing__notice--success {
-  background: var(--ds-status-success-bg);
-  color: var(--ds-status-success-text);
-}
-
-.billing__notice--error {
-  background: var(--ds-status-error-bg);
-  color: var(--ds-status-error-text);
-}
-
-.billing__notice-icon {
-  width: 1.375rem;
-  height: 1.375rem;
-}
-
-.billing__notice-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-2);
 }
 
 .billing__plan,
@@ -530,15 +453,6 @@ onMounted(load);
 
   .billing__checkout {
     grid-template-columns: 1fr;
-  }
-
-  .billing__notice {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .billing__notice-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
   }
 }
 </style>
