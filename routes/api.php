@@ -23,3 +23,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/billing/checkout', [CloudController::class, 'checkout']);
     Route::post('/billing/portal', [CloudController::class, 'billingPortal']);
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/workspace-pricing', [\Trakli\Cloud\Http\Controllers\WorkspaceBillingController::class, 'quote']);
+    Route::prefix('/workspaces/{workspace:slug}/billing')->group(function () {
+        Route::get('/', [\Trakli\Cloud\Http\Controllers\WorkspaceBillingController::class, 'status']);
+        Route::post('/checkout', [\Trakli\Cloud\Http\Controllers\WorkspaceBillingController::class, 'checkout']);
+        Route::post('/cancel-checkout', [\Trakli\Cloud\Http\Controllers\WorkspaceBillingController::class, 'cancelCheckout']);
+        Route::post('/portal', [\Trakli\Cloud\Http\Controllers\WorkspaceBillingController::class, 'portal']);
+    });
+});

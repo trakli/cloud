@@ -60,6 +60,22 @@ class CloudPlanSync
         return $synced;
     }
 
+    public function featuresOnly(): int
+    {
+        $model = config('entitlements.models.plan', Plan::class);
+        $synced = 0;
+        foreach ((array) config('cloudplans.plans', []) as $id => $source) {
+            $regions = array_filter((array) config('cloudplans.regions', []), fn ($region) => isset($region[$id . '_price']));
+            $keys = $regions === [] ? [self::key($id)] : array_map(fn ($region) => self::key($id, $region), array_keys($regions));
+            foreach ($model::whereIn('key', $keys)->get() as $plan) {
+                $plan->features = $this->features($source);
+                $plan->save();
+                $synced++;
+            }
+        }
+        return $synced;
+    }
+
     /**
      * Merges into existing metadata rather than replacing it, so the price
      * signature the price sync records is not lost and Stripe prices are not
